@@ -4,7 +4,7 @@ A browser card game of hidden gangs for 3 to 10 passengers. The 1930s, the last 
 
 A free fan project, not affiliated with any publisher. All art and prose are our own. The play is inspired by *Die Kutschfahrt zur Teufelsburg*, a card game designed by Michael Palm and Lukas Zach; game rules and mechanics are not copyrightable, and this is a clean-room implementation under its own name and setting.
 
-Will live at https://games.csiesheep.com/last_train/ (not deployed yet).
+Live at https://games.csiesheep.com/last_train/ (a placeholder until M3; noindex until M5).
 
 ## How it works
 
@@ -22,7 +22,7 @@ URLs are query strings on the page so the same build works at any prefix:
 
 ## Milestones
 
-1. **M0 Scaffold**: router, placeholder page, deploy.
+1. **M0 Scaffold**: router, placeholder page, deploy. Done.
 2. **M1 Engine**: deck, turn machine, trades, scuffles with support, declarations, `view(state, seat)`, tests.
 3. **M2 Bots**: a belief over gang assignments and hidden hands, trade and scuffle policies, three levels, a bot-vs-bot harness.
 4. **M3 Solo**: the full game against bots in the browser, with bot table talk.
