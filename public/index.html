@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>夜航船 The Night Boat</title>
+<meta name="description" content="夜航船 The Night Boat: a hidden-society card game for 3 to 10 passengers, in the browser. Under construction.">
+<link rel="canonical" href="https://games.csiesheep.com/night_boat/">
+<meta name="theme-color" content="#101720">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&family=Cormorant+Garamond:ital,wght@0,500;1,500&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main class="landing">
+  <svg class="lamp" width="72" height="72" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6"/><path d="M12 3v2"/><path d="M8 5h8l1.5 3v6a5.5 5.5 0 0 1-11 0V8z"/><path d="M12 10v4"/><path d="M10 21h4"/><path d="M12 19.5V21"/></svg>
+  <h1 class="disp" data-t="title"></h1>
+  <p class="lat" data-t="titleZh"></p>
+  <p class="tagline" data-t="tagline"></p>
+  <p class="soon" data-t="soon"></p>
+  <p><a href="https://games.csiesheep.com/" data-t="hub"></a> · <button type="button" id="langBtn" class="linkish" data-t="nav.lang"></button></p>
+  <footer data-t="credit"></footer>
+</main>
+<script type="module">
+  import en from "./i18n/en.js";
+  import zh from "./i18n/zh-Hant.js";
+  const S = { en, "zh-Hant": zh };
+  const q = new URLSearchParams(location.search);
+  let lang = q.get("lang") || localStorage.getItem("lang") || (navigator.language.startsWith("zh") ? "zh-Hant" : "en");
+  if (!S[lang]) lang = "en";
+  function paint() {
+    document.documentElement.lang = lang;
+    for (const el of document.querySelectorAll("[data-t]")) {
+      el.textContent = el.dataset.t.split(".").reduce((o, k) => (o ? o[k] : ""), S[lang]) ?? "";
+    }
+  }
+  document.getElementById("langBtn").addEventListener("click", () => {
+    lang = lang === "en" ? "zh-Hant" : "en";
+    try { localStorage.setItem("lang", lang); } catch {}
+    paint();
+  });
+  paint();
+</script>
+</body>
+</html>
