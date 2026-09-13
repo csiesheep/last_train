@@ -9,7 +9,7 @@
 // PREFIX alone to move the site to a different path.
 export { Room } from "./room.js";
 
-const PREFIX = "/night_boat";
+const PREFIX = "/last_train";
 const CANONICAL = "https://games.csiesheep.com" + PREFIX + "/";
 // Prefix-scoped sitemap. Game modes are query strings on the one page and
 // carry a canonical back to it, so the page and the rules are all there is.
@@ -33,8 +33,8 @@ function newCode() {
   return c;
 }
 
-// /night_boat/ws?create=1&name=Alice&lang=en    opens a fresh room
-// /night_boat/ws?room=ABCD&name=Bob&token=…     joins (or reconnects to) a room
+// /last_train/ws?create=1&name=Alice&lang=en    opens a fresh room
+// /last_train/ws?room=ABCD&name=Bob&token=…     joins (or reconnects to) a room
 async function connectRoom(request, env, url) {
   if (request.headers.get("Upgrade") !== "websocket") {
     return new Response("Expected a WebSocket", { status: 426 });

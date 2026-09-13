@@ -1,29 +1,32 @@
-/* 夜航船 tokens. Night ink for the ground, paper for text, one lantern's
-   amber for the Lamplighters and every primary action, verdigris for the
-   Keyholders, cinnabar for a strike, steel for a guard. Square corners, thin
-   rules, no shadows; only the lamp glows. */
+/* 末班夜車 tokens. Cream paper for the ground, navy ink for text and rules,
+   brass for the Timekeepers and their watches, jade for the Sealbearers and
+   their seals, rust for a scuffle, steel for a guard. Capsule buttons, 1.5px
+   lines, no shadows; the dark ticket card is the one heavy element. */
 :root {
-  --night: #101720;
-  --panel: #182231;
-  --line: #2b3747;
-  --deep: #0a0f16;
-  --paper: #efe4c8;
-  --mute: #a99f88;
-  --amber: #e2a63c;
-  --verdigris: #4fa08c;
-  --cinnabar: #c2452f;
-  --steel: #9fb3c8;
-  --disp: "LXGW WenKai TC", "Kaiti TC", "DFKai-SB", serif;
+  --cream: #f1e9d6;
+  --card: #faf5ea;
+  --line: #d6cbb3;
+  --navy: #1c2a44;
+  --grey: #6d7383;
+  --brass: #b08d3c;
+  --brass-dk: #8a6c26;
+  --jade: #2f6f5e;
+  --rust: #b2362b;
+  --steel: #4a6fa5;
+  --disp: "Noto Serif TC", "Songti TC", "PMingLiU", serif;
   --lat: "Cormorant Garamond", Georgia, serif;
   --body: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
 }
-html, body { margin: 0; background: var(--night); color: var(--paper); font: 15px/1.5 var(--body); }
-.landing { min-height: 100svh; max-width: 420px; margin: 0 auto; padding: 48px 24px 24px; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; }
-.lamp { color: var(--amber); filter: drop-shadow(0 0 10px rgba(226, 166, 60, 0.55)); }
-.disp { font-family: var(--disp); font-size: 56px; font-weight: 700; letter-spacing: 0.18em; margin: 8px 0 0; }
-.lat { font-family: var(--lat); font-style: italic; font-size: 20px; color: var(--mute); margin: 0; }
-.tagline { margin: 12px 0 0; }
-.soon { color: var(--mute); }
-a { color: var(--amber); }
-.linkish { background: none; border: 0; color: var(--amber); font: inherit; padding: 0; cursor: pointer; text-decoration: underline; }
-footer { margin-top: auto; font-size: 11px; color: var(--mute); }
+html, body { margin: 0; background: var(--cream); color: var(--navy); font: 15px/1.5 var(--body); }
+.landing { min-height: 100svh; max-width: 420px; margin: 0 auto; padding: 40px 22px 24px; box-sizing: border-box; display: flex; flex-direction: column; gap: 14px; }
+.ticket { background: var(--navy); color: var(--cream); border-radius: 6px; padding: 26px 20px 22px; display: flex; flex-direction: column; gap: 6px; }
+.stamp { margin: 0; font-family: var(--lat); font-size: 13px; letter-spacing: 0.3em; color: var(--brass); text-align: left; }
+.disp { font-family: var(--disp); font-weight: 900; font-size: 54px; line-height: 1.1; letter-spacing: 0.06em; margin: 0; }
+.lat { font-family: var(--lat); font-style: italic; font-size: 21px; color: #d9d2c0; margin: 0; text-align: left; }
+.ticket hr { border: 0; height: 1px; background: var(--brass); margin: 8px 0; width: 100%; }
+.tagline { margin: 0; font-size: 14px; text-align: left; }
+p { text-align: center; }
+.soon { color: var(--grey); }
+a { color: var(--brass-dk); }
+.linkish { background: none; border: 0; color: var(--brass-dk); font: inherit; padding: 0; cursor: pointer; text-decoration: underline; }
+footer { margin-top: auto; font-size: 11px; color: var(--grey); text-align: center; }

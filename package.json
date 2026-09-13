@@ -1,7 +1,7 @@
 {
-  "name": "night_boat",
+  "name": "last_train",
   "version": "0.1.0",
-  "description": "The Night Boat 夜航船: a hidden-society card game of trades and scuffles for 3 to 10 passengers. Solo against AI, or online rooms with friends. Cloudflare Worker + Durable Objects.",
+  "description": "The Last Night Train 末班夜車: a hidden-gang card game of trades and scuffles for 3 to 10 passengers. Solo against AI, or online rooms with friends. Cloudflare Worker + Durable Objects.",
   "type": "module",
   "private": true,
   "scripts": {
