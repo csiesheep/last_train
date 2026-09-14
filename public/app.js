@@ -125,7 +125,7 @@ const game = {
   me: 0, names: [], faces: [], level: "normal", rng: E.makeRng(E.randomSeed()), botTimer: null, netTimer: null,
   log: [], logSeen: 0, flashUntil: 0, auto: false,
   ws: null, code: null, lobby: null, closed: false, clock: null, gen: -1, deadline: 0,
-  ui: freshUi(),
+  ui: freshUi(), peekSeat: null,
 };
 const curView = () => (game.mode === "solo" ? (game.st ? E.view(game.st, game.me) : null) : game.view);
 const curLegal = () => (game.mode === "solo" ? (game.st ? E.legalActions(game.st, game.me) : []) : game.legal);
@@ -203,6 +203,7 @@ function botAct(seat) {
 }
 function humanAct(a) {
   closeSheet();
+  if (a.type === "choice" && !a.take) { const f = curView()?.scuffle; if (f) game.peekSeat = f.winner === f.attacker ? f.defender : f.attacker; }
   if (game.mode === "net") {
     if (!game.view || !game.view.waitingOn.includes(game.me)) return;
     const { seat, why, ...action } = a;
@@ -475,6 +476,17 @@ function render() {
   renderHand(v);
   renderKnown(v);
   renderOverlay(v);
+  // the answer to a peek: a private line, and the passenger's sheet with what was seen
+  if (game.peekSeat != null) {
+    const seat = game.peekSeat;
+    const gang = (v.knowledge.filter((k) => k.k === "gang" && k.seat === seat).pop() || {}).gang;
+    const trade = (v.knowledge.filter((k) => k.k === "trade" && k.seat === seat).pop() || {}).trade;
+    if (gang) {
+      game.peekSeat = null;
+      addSys(t("table.peeked", { name: nameOf(seat), gang: gangName(gang), trade: trade ? tradeName(trade) : "?" }), true);
+      openPassengerSheet(v, seat);
+    }
+  }
 }
 function renderBar(v) {
   $("barLeft").textContent = v.phase === "reveal" ? "" : t("table.stop", { n: num(Math.max(1, Math.ceil(v.turnNo / v.n))) });
@@ -507,10 +519,21 @@ function onSeatPick(v, legal, seat) {
   if (v.phase === "handLimit") return humanAct({ type: "gift", seat: game.me, item: ui.item, to: seat });
   if (v.phase === "scuffle") return humanAct({ type: "hypnotize", seat: game.me, target: seat });
 }
+const RING_FACES = {};
+function ringFace(seat) {
+  const id = game.faces[seat] || "";
+  const key = seat + ":" + id;
+  if (!RING_FACES[key]) RING_FACES[key] = faceEl(seat, "");
+  return RING_FACES[key];
+}
 function renderSeats(v, legal) {
-  const box = clear($("seats"));
+  const box = $("seats");
   const targets = seatPickTargets(v, legal);
   const f = v.scuffle;
+  const sig = JSON.stringify([lang, v.n, game.me, v.phase, v.turn, v.turnNo, v.winner, f && [f.step, f.attacker, f.defender, f.support, f.shown, f.swords, f.shields, f.winner, f.tie, f.hypnotized], v.seats.map((sd) => [sd.items, sd.trade, sd.tradeUsed, sd.drink, sd.gang]), targets, game.faces, game.names]);
+  if (box.dataset.sig === sig) return;
+  box.dataset.sig = sig;
+  clear(box);
   const counted = !!f && ["doctor", "choice", "take"].includes(f.step);
   const tally = (side) => 1 + Object.values(f.support).filter((x) => x === side).length;
   const sw = f ? (counted ? f.swords : tally("attacker")) : 0, sh = f ? (counted ? f.shields : tally("defender")) : 0;
@@ -551,7 +574,7 @@ function renderSeats(v, legal) {
     }
     // what they showed in this scuffle, beside the face on the outer side
     const shown = f && f.shown[s] ? shownThumbs(f.shown[s], s, role) : null;
-    const face = faceEl(s, "");
+    const face = ringFace(s);
     face.style.width = face.style.height = (big ? size[1] : size[0]) + "px";
     const you = me ? (lang === "en" ? ` (${t("table.you")})` : `（${t("table.you")}）`) : "";
     const el = h("div", { class: "seat" + (me ? " me" : "") + (role ? " " + role : "") + (big ? " big" : "") + (pick ? " pick" : ""), style: `left:${x}px;top:${y}px` },
@@ -875,10 +898,6 @@ function scuffleCard(v, legal) {
   const title = counted && f.tie ? t("table.tie", { name: nameOf(f.attacker) }) : counted && f.winner != null ? t("table.won", { name: nameOf(f.winner) })
     : f.defender === me ? t("table.attackOnYou", { a: nameOf(f.attacker) }) : f.attacker === me ? t("table.youAttack", { b: nameOf(f.defender) }) : t("table.attackOn", { a: nameOf(f.attacker), b: nameOf(f.defender) });
   card.append(h("div", { class: "title disp" }, h("span", {}, title)));
-  card.append(h("div", { class: "duel" },
-    h("div", { class: "who" }, faceEl(f.attacker, "duelface atk"), h("span", {}, nameOf(f.attacker))),
-    h("div", { class: "mid" }, h("span", { class: "atk" }, icon("sword", 22)), h("span", { class: "n atk lat" }, String(sw)), h("span", { class: "vs lat" }, "vs"), h("span", { class: "n def lat" }, String(sh)), h("span", { class: "def" }, icon("shield", 22))),
-    h("div", { class: "who" }, faceEl(f.defender, "duelface def"), h("span", {}, nameOf(f.defender)))));
   const iAct = v.waitingOn.includes(me);
   if (!iAct) { card.append(waiting(v)); return card; }
 

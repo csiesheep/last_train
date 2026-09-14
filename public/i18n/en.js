@@ -80,7 +80,7 @@ export default {
     window: { priest: "Priest: stop this scuffle?", gunman: "Gunman: bar all support?", doctor: "Doctor: cancel the outcome?" },
     use: "Use it", skip: "Not now", supportQ: "Whom do you back?", hypnoQ: "Hypnotist: who sits this one out?", hypnoNone: "Nobody",
     powersQ: "What do you show?", useTrade: "Reveal your trade: {trade}", pharmWinner: "Pharmacist: who wins?", showNothing: "Nothing", count: "Count it",
-    won: "{name} wins", tie: "A tie: {name} draws from the pile", stopped: "{name} stopped it", doctored: "{name} stepped in: it does not count",
+    peeked: "You saw {name}'s cards: {gang} · {trade}.", won: "{name} wins", tie: "A tie: {name} draws from the pile", stopped: "{name} stopped it", doctored: "{name} stepped in: it does not count",
     choiceQ: "You won. What do you want?", peekChoice: "See {name}'s gang and trade", takeChoice: "Look through {name}'s bags and take one", takeWhich: "Take which?",
     priestPay: "The Priest stopped it. Give {name} one bag:", overLimit: "Over the limit. Give one away:", giveTo: "To whom?",
     declareTitle: "Show your hand", declareText: "You will say: {gang} hold {goal}. Get any part wrong and {other} win.",
