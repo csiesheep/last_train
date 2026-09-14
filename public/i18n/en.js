@@ -12,10 +12,10 @@ export default {
   landing: { play: "Board solo with AI passengers", create: "Open a compartment", join: "Board", code: "Code", soon: "Online compartments are still being laid (M4). Board solo for now.", name: "Your name",
     about: "A hidden-gang card game: three to ten passengers belong to two gangs, trade and scuffle to learn who is who and whose bag holds what, and show their hand once their side holds three pocket watches or three jade seals. Play solo against AI passengers who talk. English and Traditional Chinese." },
   setup: {
-    title: "Board solo", sub: "You and {bots} AI passengers.", players: "Passengers, you included", level: "AI level", name: "Your name",
+    title: "Board solo", players: "Passengers, you included", level: "AI level", name: "Your name",
     easy: "Easy", normal: "Normal", hard: "Hard", smuggling: "Smuggling", smugglingHint: "A traded card's text fires only if the giver reads it out.",
-    hint: "Even counts are the most balanced; at odd counts the smaller gang gets a strong drink each. Read the rules before a three-player game.",
-    start: "Depart", defaultName: "You", face: "Your face", faceHint: "Pick any of the twenty; the AI passengers take the others.",
+    hint: "Even counts are the most balanced; at odd counts the smaller gang gets a strong drink each.",
+    start: "Depart", defaultName: "You", face: "Your face",
   },
   gang: { timekeepers: "the Clocktower Society", sealbearers: "the Seal Society", timekeepersLat: "鐘樓會", sealbearersLat: "印信社" },
   goal: { timekeepers: "three pocket watches", sealbearers: "three jade seals" },

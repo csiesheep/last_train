@@ -105,7 +105,6 @@ function renderSetup() {
   $("pCount").textContent = num(setup.n);
   $("pMinus").disabled = setup.n <= E.MIN_PLAYERS;
   $("pPlus").disabled = setup.n >= E.MAX_PLAYERS;
-  $("setupSub").textContent = t("setup.sub", { bots: setup.n - 1 });
   document.querySelectorAll("#levelSeg button").forEach((b) => b.classList.toggle("on", b.dataset.level === setup.level));
   $("nameInput").value = setup.name;
   $("smugChk").checked = setup.smuggling;

@@ -12,10 +12,10 @@ export default {
   landing: { play: "單人上車 · 與 AI 同行", create: "開一間包廂", join: "上車", code: "車次", soon: "線上包廂還在鋪軌（M4）。先單人上車吧。", name: "你的名字",
     about: "一款隱藏陣營的卡牌遊戲：三到十位乘客分屬兩個幫會，靠交換與衝突探出誰是自己人、東西在誰手上，集齊三只懷錶或三枚玉印就攤牌。單人可與會說話的 AI 乘客同車。中英文皆可。" },
   setup: {
-    title: "單人上車", sub: "你和 {bots} 位 AI 乘客。", players: "同車人數（含你）", level: "AI 難度", name: "你的名字",
+    title: "單人上車", players: "同車人數（含你）", level: "AI 難度", name: "你的名字",
     easy: "易", normal: "中", hard: "難", smuggling: "走私", smugglingHint: "換出去的物件效果，由給的人決定要不要唸出來。",
-    hint: "雙數人數最均衡；單數時人少的一方每人多一杯烈酒。三人局請先讀規則。",
-    start: "開車", defaultName: "你", face: "你的長相", faceHint: "二十張臉任選；其餘乘客由 AI 扮演，不會和你撞臉。",
+    hint: "雙數人數最均衡；單數時人少的一方每人多一杯烈酒。",
+    start: "開車", defaultName: "你", face: "你的長相",
   },
   gang: { timekeepers: "鐘樓會", sealbearers: "印信社", timekeepersLat: "the Clocktower Society", sealbearersLat: "the Seal Society" },
   goal: { timekeepers: "三只懷錶", sealbearers: "三枚玉印" },
