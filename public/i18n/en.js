@@ -127,7 +127,8 @@ export default {
     joined: "{name} boarded.", left: "{name} got off.", leftGame: "{name} left mid-journey; an AI takes the seat.",
     timeout: "{name} did not answer; the carriage decided for them.", over: "{gang} win.", overSolo: "{name} leaves alone.",
   },
-  sheet: { inDeck: "{n} on the whole train", inHand: "in your bag", close: "Close", shownBy: "{name}'s revealed trade", yours: "your trade" },
+  sheet: { inDeck: "{n} on the whole train", inHand: "in your bag", close: "Close", shownBy: "{name}'s revealed trade", yours: "your trade",
+    gang: "Gang", trade: "Trade", bags: "{n} bags", used: "used", knownHint: "What you have seen; a question mark for what you have not", tapAny: "Tap any picture for its text", vs: "{a} vs {b}" },
   nums: null,
   talk: {
     offer: ["{to}, keep this one.", "A little trade, {to}?", "{to}, have a look at this."],

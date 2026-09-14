@@ -514,11 +514,24 @@ function renderSeats(v, legal) {
   const counted = !!f && ["doctor", "choice", "take"].includes(f.step);
   const tally = (side) => 1 + Object.values(f.support).filter((x) => x === side).length;
   const sw = f ? (counted ? f.swords : tally("attacker")) : 0, sh = f ? (counted ? f.shields : tally("defender")) : 0;
-  const sit = h("div", { class: "sit" });
-  for (let s = 0; s < v.n; s++) {
+  const n = v.n, me0 = game.me ?? 0;
+  const CX = 173, CY = 148, R = 112;
+  const size = n <= 6 ? [52, 64] : n <= 8 ? [46, 56] : [40, 48];
+  box.append(h("div", { class: "table" }));
+  // what the middle says
+  const mid = h("div", { class: "mid" });
+  if (f) mid.append(h("span", { class: "lab" }, t("sheet.vs", { a: nameOf(f.attacker), b: nameOf(f.defender) })),
+    h("div", { class: "row", style: "gap:6px" }, h("span", { class: "atk" }, icon("sword", 18)), h("span", { class: "n atk lat" }, String(sw)), h("span", { class: "vs lat" }, "vs"), h("span", { class: "n def lat" }, String(sh)), h("span", { class: "def" }, icon("shield", 18))));
+  else if (v.phase === "over") mid.append(h("span", { class: "lab" }, t("table.stop", { n: num(Math.max(1, Math.ceil(v.turnNo / v.n))) })), h("span", { class: "who" }, typeof v.winner === "number" ? t("over.soloWins", { name: nameOf(v.winner) }) : t("over.gangWins", { gang: gangName(v.winner) })));
+  else if (v.phase !== "reveal") mid.append(h("span", { class: "lab" }, t("table.stop", { n: num(Math.max(1, Math.ceil(v.turnNo / v.n))) })), h("span", { class: "who" }, v.turn === game.me ? t("table.yourTurn") : t("table.turnOf", { name: nameOf(v.turn) })));
+  box.append(mid);
+  for (let s = 0; s < n; s++) {
     const sd = v.seats[s];
     const me = s === game.me;
     const pick = targets.includes(s);
+    const k = (s - me0 + n) % n;
+    const ang = Math.PI / 2 + (2 * Math.PI * k) / n;
+    const x = CX + R * Math.cos(ang), y = CY + R * Math.sin(ang);
     let role = "", big = false, stat;
     if (f) {
       const won = counted && !f.tie && f.winner === s ? " · " + t("table.win") : "";
@@ -536,18 +549,78 @@ function renderSeats(v, legal) {
         if (sd.drink) stat.append(icon("drink", 11));
       }
     }
-    const badge = role === "a" || role === "a-sup" ? h("span", { class: "badge atk" }, icon("sword", 12))
-      : role === "d" || role === "d-sup" ? h("span", { class: "badge def" }, icon("shield", 12))
-      : role === "out" ? h("span", { class: "badge" }, icon("out", 12)) : null;
-    const canSheet = !pick && !!sd.trade;
+    // what they showed in this scuffle, beside the face on the outer side
+    const shown = f && f.shown[s] ? shownThumbs(f.shown[s], s, role) : null;
+    const face = faceEl(s, "");
+    face.style.width = face.style.height = (big ? size[1] : size[0]) + "px";
     const you = me ? (lang === "en" ? ` (${t("table.you")})` : `（${t("table.you")}）`) : "";
-    sit.append(h("button", { type: "button",
-      class: "fig" + (me ? " me" : "") + (role ? " " + role : "") + (big ? " big" : "") + (pick ? " pick" : ""),
-      disabled: !pick && !canSheet,
-      onclick: pick ? () => onSeatPick(v, legal, s) : canSheet ? () => openTradeSheet(sd.trade, s) : null },
-      h("span", { class: "pp" }, faceEl(s, ""), badge), h("span", { class: "plate" }, nameOf(s) + you), stat));
+    const el = h("div", { class: "seat" + (me ? " me" : "") + (role ? " " + role : "") + (big ? " big" : "") + (pick ? " pick" : ""), style: `left:${x}px;top:${y}px` },
+      h("button", { type: "button", class: "pp", onclick: pick ? () => onSeatPick(v, legal, s) : () => openPassengerSheet(v, s) }, face, shown && x <= CX ? shown : null, shown && x > CX ? shown : null),
+      h("span", { class: "plate" }, nameOf(s) + you), stat);
+    if (shown) shown.classList.add(x <= CX ? "l" : "r");
+    box.append(el);
   }
-  box.append(h("div", { class: "bench" }, h("div", { class: "shade" }), sit));
+}
+// Thumbnails of what a passenger showed in the scuffle: red for an attack bonus,
+// blue for a defence bonus, grey for anything else. Tapping one opens its text.
+function shownThumbs(x, seat, role) {
+  const wrap = h("span", { class: "shown" });
+  const sideCls = role === "a" || role === "a-sup" ? "atk" : role === "d" || role === "d-sup" ? "def" : "";
+  const itemCls = (kind) => { const fx = (E.ITEM_BY_KIND[kind] || {}).fight || ""; return fx.includes("attack") ? "atk" : fx.includes("defend") ? "def" : ""; };
+  const tradeCls = (tr) => tr === "thug" ? "atk" : tr === "master" ? "def" : tr === "bodyguard" ? sideCls : "";
+  for (const kind of x.items) wrap.append(h("button", { type: "button", class: "sh " + itemCls(kind), title: itemName(kind), onclick: (e) => { e.stopPropagation(); openItemSheet(kind); } }, itemImg(kind)));
+  if (x.trade) wrap.append(h("button", { type: "button", class: "sh " + tradeCls(x.trade), title: tradeName(x.trade), onclick: (e) => { e.stopPropagation(); openTradeSheet(x.trade, seat); } }, tradeImg(x.trade)));
+  return wrap;
+}
+// Everything this seat knows about another passenger's hand, replayed from the
+// public log and the private facts in time order. Whenever an item leaves a
+// hand unseen, that hand's list is dropped rather than guessed.
+function whatIKnow(v, seat) {
+  const known = {}; // id -> kind
+  const ids = new Set();
+  const facts = v.knowledge.filter((k) => ["hand", "got", "gave", "lost", "offered"].includes(k.k));
+  const events = [...v.log.map((e) => ({ t: e.t, o: 0, log: e })), ...facts.map((k) => ({ t: k.at, o: 1, fact: k }))].sort((a, b) => a.t - b.t || a.o - b.o);
+  const forget = () => { for (const id of Object.keys(known)) delete known[id]; };
+  const involves = (e, s) => [e.from, e.to, e.seat, e.target, e.attacker, e.defender, e.winner].includes(s);
+  for (const ev of events) {
+    if (ev.log) {
+      const e = ev.log;
+      if (e.type === "trade" && e.accepted && (e.from === seat || e.to === seat) && e.from !== game.me && e.to !== game.me) forget();
+      if (e.type === "demand" && e.had && (e.seat === seat || e.target === seat) && e.seat !== game.me && e.target !== game.me) forget();
+      if (e.type === "scuffle" && e.choice === "take" && e.winner !== game.me) { const loser = e.winner === e.attacker ? e.defender : e.attacker; if (loser === seat && loser !== game.me) forget(); }
+      if (e.type === "scuffle" && e.paid && e.attacker === seat && e.stopped !== game.me && e.attacker !== game.me) forget();
+      if (e.type === "gift" && e.from === seat && e.to !== game.me && e.from !== game.me) forget();
+      if (e.type === "timetable") forget();
+    } else {
+      const k = ev.fact;
+      if (k.k === "hand" && k.seat === seat) { forget(); for (const it of k.items) known[it.id] = it.kind; }
+      if (k.k === "got" && k.from === seat) delete known[k.id];
+      if ((k.k === "gave" && k.to === seat) || (k.k === "lost" && k.to === seat) || (k.k === "offered" && k.from === seat)) known[k.id] = k.kind;
+    }
+    void ids;
+  }
+  return known;
+}
+function openPassengerSheet(v, seat) {
+  const sd = v.seats[seat];
+  const me = seat === game.me;
+  const gangKnown = me ? v.me.gang : (v.phase === "over" && sd.gang) || (v.knowledge.filter((k) => k.k === "gang" && k.seat === seat).pop() || {}).gang || null;
+  const tradeKnown = me ? v.me.trade : sd.trade || (v.knowledge.filter((k) => k.k === "trade" && k.seat === seat).pop() || {}).trade || null;
+  const items = me ? Object.fromEntries(v.me.items.map((it) => [it.id, it.kind])) : (v.phase === "over" && sd.hand ? Object.fromEntries(sd.hand.map((it) => [it.id, it.kind])) : whatIKnow(v, seat));
+  const kinds = Object.values(items).slice(0, sd.items);
+  const unknown = Math.max(0, sd.items - kinds.length);
+  const q = () => h("span", { class: "q lat" }, "?");
+  const tradeDef = tradeKnown ? E.TRADE_BY_ID[tradeKnown] : null;
+  openSheet(
+    h("div", { class: "row", style: "gap:12px" }, faceEl(seat, "lg2"), h("div", { class: "stack", style: "gap:2px;flex:1;min-width:0" }, h("span", { class: "disp ttl" }, nameOf(seat)), h("span", { class: "hint" }, t("table.stop", { n: num(Math.max(1, Math.ceil(v.turnNo / v.n))) }) + " · " + t("sheet.bags", { n: sd.items }))),
+      h("div", { class: "stack", style: "gap:2px;align-items:flex-end" }, h("span", { class: "hint" }, t("sheet.gang")), gangKnown ? h("span", { class: "tag " + (gangKnown === E.TIMEKEEPERS ? "watch" : "seal") }, gangName(gangKnown)) : q())),
+    h("div", { class: "rule" }),
+    h("span", { class: "hint" }, t("sheet.trade")),
+    tradeKnown ? h("div", { class: "row", style: "gap:10px" }, h("button", { type: "button", class: "thumbbtn", onclick: () => openTradeSheet(tradeKnown, seat) }, tradeImg(tradeKnown, "thumb56")), h("div", { class: "stack", style: "gap:0" }, h("b", {}, tradeName(tradeKnown)), h("span", { class: "hint" }, t(tradeDef && tradeDef.once ? "reveal.once" : "reveal.always") + (sd.tradeUsed ? " · " + t("sheet.used") : "")))) : q(),
+    h("div", { class: "row between" }, h("span", { class: "hint" }, t("sheet.bags", { n: sd.items })), h("span", { class: "hint" }, me ? "" : t("sheet.knownHint"))),
+    h("div", { class: "row wrap", style: "gap:8px" }, ...kinds.map((kind) => h("button", { type: "button", class: "thumbbtn", onclick: () => openItemSheet(kind) }, itemImg(kind, "thumb56"))), ...Array.from({ length: unknown }, q)),
+    h("div", { class: "rule" }),
+    h("div", { class: "row between" }, h("span", { class: "hint" }, t("sheet.tapAny")), btn(t("sheet.close"), "ghost sm", closeSheet)));
 }
 
 // The quick lines under the talk: one tap sends them, so nobody has to type on a phone.

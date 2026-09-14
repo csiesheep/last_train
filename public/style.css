@@ -203,27 +203,39 @@ td .row { gap: 4px; flex-wrap: wrap; }
 .scr.table > .backdrop, .scr.land > .backdrop { position: fixed; z-index: 0; }
 .scr.table .card { background: rgba(22, 28, 40, 0.88); }
 .scr.table .card.dark { background: rgba(9, 12, 19, 0.92); }
-.seats { display: flex; flex-direction: column; gap: 8px; }
-.bench { position: relative; height: 150px; border: 1px solid var(--line); border-radius: 2px; background: var(--card) url(art/bench.jpg) center 35% / cover no-repeat; overflow: hidden; }
-.bench .shade { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(14,18,27,0.05) 0%, rgba(14,18,27,0.2) 50%, rgba(14,18,27,0.75) 100%); }
-.bench .sit { position: absolute; left: 0; right: 0; bottom: 6px; display: flex; justify-content: space-evenly; align-items: flex-end; }
-/* one seat: face, name, one status line; each part has a fixed height so a turn or a scuffle never moves the row */
-.fig { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 0 2px; border: 0; background: none; color: var(--bone); cursor: default; min-width: 0; flex: 1 1 0; max-width: 132px; }
-.fig:disabled { color: var(--bone); }
-.fig:not(:disabled) { cursor: pointer; }
-.fig .pp { position: relative; display: block; }
-.fig .face { width: 46px; height: 46px; border: 2px solid rgba(230, 223, 208, 0.35); }
-.fig.big .face { width: 72px; height: 72px; }
-.fig.me .face { border-color: var(--bone); }
-.fig.turn .face { border-color: var(--brass-hi); box-shadow: 0 0 18px rgba(201, 165, 79, 0.6); }
-.fig.a .face, .fig.a-sup .face { border-color: var(--rust); border-width: 3px; }
-.fig.d .face, .fig.d-sup .face { border-color: var(--steel); border-width: 3px; }
-.fig.out .face { opacity: 0.45; }
-.fig.pick .face { outline: 2px dashed var(--brass-hi); outline-offset: 3px; }
-.badge { position: absolute; right: -3px; top: -3px; width: 20px; height: 20px; border-radius: 50%; background: var(--deep); border: 1.5px solid currentColor; color: var(--grey); display: flex; align-items: center; justify-content: center; }
-.badge svg { width: 12px; height: 12px; }
-.fig .plate { font-size: 11px; font-weight: 500; background: rgba(9, 12, 19, 0.82); padding: 0 6px; border-radius: 2px; white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; line-height: 18px; height: 18px; }
-.fig .stat { font-size: 10px; line-height: 16px; height: 16px; color: var(--grey); background: rgba(9, 12, 19, 0.72); padding: 0 5px; border-radius: 2px; white-space: nowrap; max-width: 100%; overflow: hidden; display: flex; gap: 3px; align-items: center; }
+/* the round table: every seat on a circle, you at the bottom; the glow sits on the table behind a seat, never on the picture */
+.ring { position: relative; width: 346px; height: 336px; margin: 0 auto; }
+.ring .table { position: absolute; left: 173px; top: 148px; width: 216px; height: 216px; transform: translate(-50%, -50%); border-radius: 50%; background: radial-gradient(circle at 50% 40%, #1c2333 0%, #11161f 70%, #0b0f16 100%); border: 1px solid var(--brass); box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.6); }
+.ring .mid { position: absolute; left: 173px; top: 148px; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; gap: 2px; text-align: center; max-width: 150px; }
+.ring .mid .lab { font-size: 11px; letter-spacing: 0.14em; color: var(--grey); text-transform: uppercase; }
+.ring .mid .who { font-size: 13px; }
+.ring .mid .n { font-size: 36px; font-weight: 700; line-height: 1; font-variant-numeric: lining-nums; }
+.ring .mid .vs { font-style: italic; font-size: 16px; color: var(--grey); padding: 0 4px; }
+.seat { position: absolute; width: 74px; margin-left: -37px; margin-top: -30px; display: flex; flex-direction: column; align-items: center; gap: 2px; z-index: 1; }
+.seat .pp { position: relative; display: block; padding: 0; border: 0; background: none; cursor: pointer; }
+.seat .pp::before { content: ""; position: absolute; left: 50%; top: 50%; width: 120px; height: 120px; transform: translate(-50%, -50%); border-radius: 50%; z-index: -1; pointer-events: none; }
+.seat .face { border: 2px solid rgba(230, 223, 208, 0.35); }
+.seat.me .face { border-color: var(--bone); }
+.seat.turn .face { border-color: var(--brass-hi); }
+.seat.turn .pp::before { background: radial-gradient(circle, rgba(201, 165, 79, 0.5) 0%, rgba(201, 165, 79, 0.18) 40%, rgba(201, 165, 79, 0) 70%); }
+.seat.a .face, .seat.a-sup .face { border-color: var(--rust); border-width: 3px; }
+.seat.d .face, .seat.d-sup .face { border-color: var(--steel); border-width: 3px; }
+.seat.a .pp::before { background: radial-gradient(circle, rgba(184, 69, 47, 0.6) 0%, rgba(184, 69, 47, 0.25) 40%, rgba(184, 69, 47, 0) 70%); }
+.seat.d .pp::before { background: radial-gradient(circle, rgba(111, 143, 184, 0.6) 0%, rgba(111, 143, 184, 0.25) 40%, rgba(111, 143, 184, 0) 70%); }
+.seat.out .face { opacity: 0.4; }
+.seat.pick .face { outline: 2px dashed var(--brass-hi); outline-offset: 3px; }
+.seat .plate { font-size: 11px; font-weight: 500; background: rgba(9, 12, 19, 0.85); padding: 0 6px; border-radius: 2px; white-space: nowrap; max-width: 78px; overflow: hidden; text-overflow: ellipsis; line-height: 17px; }
+.seat .stat { font-size: 10px; line-height: 15px; color: var(--grey); background: rgba(9, 12, 19, 0.75); padding: 0 5px; border-radius: 2px; white-space: nowrap; max-width: 90px; overflow: hidden; display: flex; gap: 3px; align-items: center; }
+.shown { position: absolute; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 3px; }
+.shown.l { right: 100%; margin-right: 4px; } .shown.r { left: 100%; margin-left: 4px; }
+.shown .sh { padding: 0; border: 2px solid var(--grey); border-radius: 3px; background: var(--deep); width: 24px; height: 24px; overflow: hidden; cursor: pointer; display: block; }
+.shown .sh img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.shown .sh.atk { border-color: var(--rust); box-shadow: 0 0 8px rgba(184, 69, 47, 0.6); }
+.shown .sh.def { border-color: var(--steel); box-shadow: 0 0 8px rgba(111, 143, 184, 0.6); }
+/* the passenger sheet */
+.face.lg2 { width: 56px; height: 56px; }
+.thumb56 { width: 56px; height: 56px; border-radius: 3px; border: 1px solid var(--line); object-fit: cover; display: block; }
+.q { width: 56px; height: 56px; border-radius: 3px; border: 1px dashed var(--line); display: flex; align-items: center; justify-content: center; color: var(--grey); font-size: 26px; background: var(--deep); }
 
 /* luggage pictures */
 .pic { width: 66px; min-width: 66px; height: 92px; border: 1px solid var(--line); border-radius: 3px; background: var(--deep); color: var(--bone); display: flex; flex-direction: column; align-items: center; justify-content: flex-start; overflow: hidden; padding: 0; cursor: pointer; }

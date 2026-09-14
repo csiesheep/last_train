@@ -127,7 +127,8 @@ export default {
     joined: "{name} 上車了。", left: "{name} 下車了。", leftGame: "{name} 中途下車，座位交給 AI。",
     timeout: "{name} 沒有反應，由車廂代為決定。", over: "{gang} 勝。", overSolo: "{name} 獨自下車。",
   },
-  sheet: { inDeck: "全車 {n} 件", inHand: "在你手上", close: "關閉", shownBy: "{name} 亮出的行當", yours: "你的行當" },
+  sheet: { inDeck: "全車 {n} 件", inHand: "在你手上", close: "關閉", shownBy: "{name} 亮出的行當", yours: "你的行當",
+    gang: "幫會", trade: "行當", bags: "行李 {n} 件", used: "已用", knownHint: "看過的顯示圖，沒看過的是問號", tapAny: "點任何一張看說明", vs: "{a} 對 {b}" },
   nums: ["一", "二", "三", "四", "五", "六", "七", "八", "九", "十"],
   talk: {
     offer: ["{to}，這件你收著。", "跟你換個東西，{to}。", "{to}，看看這個。"],
