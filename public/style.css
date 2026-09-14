@@ -20,6 +20,7 @@
   --body: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
 }
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 html, body { margin: 0; background: var(--ground); color: var(--bone); font: 15px/1.5 var(--body); }
 button { font: inherit; color: inherit; }
 a { color: var(--brass-hi); text-decoration: none; }
@@ -140,6 +141,21 @@ input[type=text], input:not([type]) { min-height: 46px; width: 100%; border: 1px
 .known ul { margin: 6px 0 0; padding-left: 18px; }
 .opt { display: flex; align-items: center; gap: 10px; min-height: 44px; }
 .opt input { width: 22px; height: 22px; accent-color: var(--brass-hi); }
+
+/* lobby */
+.codebox { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 18px; text-align: center; }
+.code { font-size: 46px; font-weight: 700; letter-spacing: 0.3em; line-height: 1.1; }
+.li { display: flex; align-items: center; gap: 10px; min-height: 44px; border: 1px solid var(--line); border-radius: 2px; background: var(--card); padding: 6px 10px; }
+.li .no { font-family: var(--lat); font-size: 16px; color: var(--grey); width: 18px; }
+.li .av { width: 32px; height: 32px; border-radius: 50%; background: var(--deep); border: 1px solid var(--line); display: flex; align-items: center; justify-content: center; font-size: 14px; }
+.li .av.bot { border-color: var(--steel); color: var(--steel); }
+.li .nm { flex: 1; }
+.li.empty { justify-content: center; border-style: dashed; color: var(--grey); background: transparent; cursor: pointer; }
+.tag.ok { color: var(--jade); border-color: var(--jade); }
+.tag.off { color: var(--rust); border-color: var(--rust); }
+.tag.host { color: var(--brass-hi); border-color: var(--brass-hi); }
+.tag.x { cursor: pointer; background: transparent; }
+.err { color: var(--rust); }
 
 /* reveal overlay */
 .overlay { position: fixed; inset: 0; background: var(--deep); overflow-y: auto; z-index: 10; }

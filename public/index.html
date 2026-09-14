@@ -34,12 +34,13 @@
     <p class="small" data-t="tagline"></p>
   </section>
   <button type="button" class="btn p" id="btnPlay" data-t="landing.play"></button>
-  <button type="button" class="btn" id="btnCreate" disabled data-t="landing.create"></button>
+  <label class="field"><span class="lab" data-t="landing.name"></span><input id="landName" maxlength="16" autocomplete="off"></label>
+  <button type="button" class="btn" id="btnCreate" data-t="landing.create"></button>
   <div class="row">
-    <div class="input grow muted" id="joinCode" data-t="landing.code"></div>
-    <button type="button" class="btn sm" id="btnJoin" disabled data-t="landing.join"></button>
+    <label class="field grow"><span class="lab" data-t="landing.code"></span><input id="joinCode" maxlength="4" autocapitalize="characters" autocomplete="off" placeholder="_ _ _ _"></label>
+    <button type="button" class="btn sm" id="btnJoin" data-t="landing.join"></button>
   </div>
-  <p class="hint center" data-t="landing.soon"></p>
+  <p class="hint center" id="landStatus"></p>
   <p class="hint center" data-t="meta"></p>
   <p class="about" data-t="landing.about"></p>
   <p class="foot"><small data-t="credit"></small></p>
@@ -66,6 +67,28 @@
   <button type="button" class="btn p" id="btnStart" data-t="setup.start"></button>
 </main>
 
+<!-- ===== Compartment lobby ===== -->
+<main id="view-lobby" class="scr" hidden>
+  <div class="bar"><button type="button" id="lbLeave" class="linkish" data-t="lobby.leave"></button><span data-t="lobby.room"></span></div>
+  <div class="card dark ticket codebox"><span class="lab" data-t="lobby.code"></span><div class="code lat" id="lbCode">····</div><p class="hint" id="lbStatus"></p></div>
+  <div class="row"><button type="button" class="btn sm" id="lbCopy" data-t="lobby.copy"></button><button type="button" class="btn sm" id="lbShare" data-t="lobby.share"></button></div>
+  <span class="lab" id="lbSeatsLab"></span>
+  <div class="stack" id="lbSeats"></div>
+  <div id="lbHost" class="stack" hidden>
+    <span class="lab" data-t="lobby.level"></span>
+    <div class="seg" id="lbLevel">
+      <button type="button" data-level="easy" data-t="setup.easy"></button>
+      <button type="button" data-level="normal" data-t="setup.normal"></button>
+      <button type="button" data-level="hard" data-t="setup.hard"></button>
+    </div>
+    <label class="card check"><span><b data-t="lobby.smuggling"></b><span class="hint block" data-t="setup.smugglingHint"></span></span><input type="checkbox" id="lbSmug"></label>
+  </div>
+  <div class="log" id="lbLog"></div>
+  <div class="row"><input id="lbChat" maxlength="200" autocomplete="off"><button type="button" class="btn sm" id="lbSend">↑</button></div>
+  <div class="spacer"></div>
+  <div class="row"><button type="button" class="btn grow" id="lbReady"></button><button type="button" class="btn p grow" id="lbStart" hidden></button></div>
+</main>
+
 <!-- ===== The carriage ===== -->
 <main id="view-table" class="scr table" hidden>
   <div class="bar"><span id="barLeft"></span><span id="barRight"></span></div>
@@ -73,8 +96,9 @@
   <div id="panel"></div>
   <div id="hand"></div>
   <div class="log" id="log" aria-live="polite"></div>
+  <div class="row" id="chatRow" hidden><input id="chatIn" maxlength="200" autocomplete="off"><button type="button" class="btn sm" id="chatSend">↑</button></div>
   <details class="known" id="knownBox" hidden><summary data-t="table.knowledge"></summary><ul id="knownList"></ul></details>
-  <p class="foot"><a href="." data-link data-t="table.lobby"></a></p>
+  <p class="foot"><button type="button" class="linkish" id="tableLeave" data-t="table.lobby"></button></p>
 </main>
 
 <!-- ===== Reveal overlay ===== -->

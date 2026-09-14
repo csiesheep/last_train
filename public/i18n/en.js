@@ -111,6 +111,19 @@ export default {
     solo: "{name} shows the first-class ticket and leaves alone.",
     dealt: "Cards dealt. {name} goes first.",
   },
+  lobby: {
+    room: "Compartment", code: "Code", copy: "Copy link", copied: "Copied", share: "Share", leave: "Leave",
+    seats: "Passengers {n} of {max}", need: "at least {min} to depart", addBot: "+ add an AI passenger", remove: "remove",
+    ready: "Seated", notReady: "Not seated", start: "Depart · {n}", host: "CONDUCTOR", bot: "AI", away: "AWAY", you: "you",
+    waiting: "Waiting for {n} to take a seat.", canStart: "Everyone is seated.", hostStarts: "The conductor departs the train.",
+    level: "AI level", smuggling: "Smuggling", connecting: "Connecting…", spectating: "This train has left. You are watching.",
+    rematchWait: "Waiting for the conductor to board again.", toLobby: "Back to the compartment",
+    err: { noRoom: "No compartment with that code. Check the four letters and try again.", full: "That compartment is full.", needMore: "You need at least three seats. Add AI passengers.", notReady: "Everyone has to take a seat first.", closed: "Connection lost. Reload to reconnect.", badCode: "Enter the four-letter code.", needName: "Type your name first." },
+  },
+  sys: {
+    joined: "{name} boarded.", left: "{name} got off.", leftGame: "{name} left mid-journey; an AI takes the seat.",
+    timeout: "{name} did not answer; the carriage decided for them.", over: "{gang} win.", overSolo: "{name} leaves alone.",
+  },
   names: ["Mrs. Zhou", "Secretary Wang", "Boss Chen", "Miss Lin", "Ah Biao", "Xiao Si", "Mr. He", "Old Jin", "Ah Mao", "Teacher Bai"],
   nums: null,
   talk: {

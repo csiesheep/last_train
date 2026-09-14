@@ -111,6 +111,19 @@ export default {
     solo: "{name} 亮出頭等票，獨自下車。",
     dealt: "牌發好了。{name} 先走。",
   },
+  lobby: {
+    room: "包廂", code: "車次", copy: "複製連結", copied: "已複製", share: "分享", leave: "下車",
+    seats: "乘客 {n} / {max}", need: "至少 {min} 人才能開車", addBot: "＋ 加一位 AI", remove: "移除",
+    ready: "就座", notReady: "還沒就座", start: "開車 · {n} 人", host: "列車長", bot: "AI", away: "離線", you: "你",
+    waiting: "等 {n} 位就座。", canStart: "都就座了。", hostStarts: "由列車長開車。",
+    level: "AI 難度", smuggling: "走私", connecting: "連線中…", spectating: "這班車已經開了，你在旁觀。",
+    rematchWait: "等列車長再開一班。", toLobby: "回包廂",
+    err: { noRoom: "沒有這個車次。檢查四個字母再試一次。", full: "這間包廂滿了。", needMore: "至少要三個座位。加幾位 AI。", notReady: "大家得先就座。", closed: "連線斷了，重新整理可重連。", badCode: "請輸入四個字母的車次。", needName: "先填名字。" },
+  },
+  sys: {
+    joined: "{name} 上車了。", left: "{name} 下車了。", leftGame: "{name} 中途下車，座位交給 AI。",
+    timeout: "{name} 沒有反應，由車廂代為決定。", over: "{gang} 勝。", overSolo: "{name} 獨自下車。",
+  },
   names: ["周太太", "王秘書", "陳老闆", "林小姐", "阿彪", "小四", "何先生", "老金", "阿毛", "白老師"],
   nums: ["一", "二", "三", "四", "五", "六", "七", "八", "九", "十"],
   talk: {

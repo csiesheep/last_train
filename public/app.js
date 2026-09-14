@@ -73,7 +73,8 @@ function setLang(l) {
   document.querySelectorAll("[data-t]").forEach((el) => { el.textContent = t(el.dataset.t); });
   $("nameInput").placeholder = t("setup.defaultName");
   renderSetup();
-  if (game.st) { game.names[game.me] = setup.name || t("setup.defaultName"); rebuildLog(); render(); }
+  if (game.mode === "solo" && game.st) { game.names[game.me] = setup.name || t("setup.defaultName"); rebuildLog(); render(); }
+  if (game.mode === "net") { if (game.lobby) renderLobby(); if (game.view) { rebuildLog(); render(); } }
 }
 $("langBtn").addEventListener("click", () => setLang(lang === "en" ? "zh-Hant" : "en"));
 const num = (n) => (S.nums && S.nums[n - 1]) || String(n);
@@ -109,15 +110,28 @@ $("btnPlay").addEventListener("click", () => go("?play"));
 
 // ---------- game ----------
 const game = {
-  st: null, me: 0, names: [], level: "normal", rng: null, botTimer: null,
+  mode: "solo",       // "solo" | "net"
+  st: null,           // solo: the full engine state
+  view: null, legal: [], // net: this seat's view and legal actions from the room
+  me: 0, names: [], level: "normal", rng: E.makeRng(E.randomSeed()), botTimer: null, netTimer: null,
   log: [], logSeen: 0, flashUntil: 0, auto: false,
+  ws: null, code: null, lobby: null, closed: false, clock: null, gen: -1, deadline: 0,
   ui: freshUi(),
+};
+const curView = () => (game.mode === "solo" ? (game.st ? E.view(game.st, game.me) : null) : game.view);
+const curLegal = () => (game.mode === "solo" ? (game.st ? E.legalActions(game.st, game.me) : []) : game.legal);
+// Per-tab: the reconnect token, so two tabs in one browser are two players.
+const sess = {
+  get(k) { try { return sessionStorage.getItem(k); } catch { return null; } },
+  set(k, v) { try { sessionStorage.setItem(k, v); } catch {} },
 };
 function freshUi() { return { mode: null, item: null, kind: null, holders: {}, picks: [], showItems: new Set(), showTrade: false, winner: null, announce: true }; }
 const DELAY = { reveal: 150, turn: 1200, peek: 900, handLimit: 600, answer: 900, return: 700, codebook: 700, coat: 700, direction: 600, passItems: 400,
   priest: 300, gunman: 300, doctor: 350, priestPay: 600, support: 550, hypnotist: 450, powers: 450, choice: 700, take: 600 };
 
 function startGame() {
+  leaveRoom(true);
+  game.mode = "solo"; game.view = null; game.legal = [];
   const n = setup.n;
   game.rng = E.makeRng(E.randomSeed());
   game.st = E.createGame(E.randomSeed(), n, { smuggling: setup.smuggling });
@@ -179,6 +193,13 @@ function botAct(seat) {
   step(a);
 }
 function humanAct(a) {
+  if (game.mode === "net") {
+    if (!game.view || !game.view.waitingOn.includes(game.me)) return;
+    const { seat, why, ...action } = a;
+    send({ type: "act", action });
+    game.ui = freshUi();
+    return;
+  }
   if (!game.st || !E.mustAct(game.st).includes(game.me)) return;
   step(a);
 }
@@ -209,11 +230,169 @@ function afterStep() {
 function addSay(seat, text) { game.log.push({ seat, text, entry: null }); renderLog(); }
 function addSys(text, hot = false, entry = null) { game.log.push({ seat: null, text, hot, entry }); renderLog(); }
 function rebuildLog() {
-  // after a language switch, redo the system lines from the engine's log
-  const talk = game.log.filter((l) => l.seat !== null);
-  game.log = game.st.log.map((e) => ({ seat: null, text: describe(e), hot: e.type === "scuffle" || e.type === "declare" || e.type === "solo" }));
+  // after a language switch, redo the engine's lines in the new language
+  const v = curView();
+  if (!v) return;
+  const talk = game.log.filter((l) => l.seat !== null || l.room);
+  game.log = v.log.map((e) => ({ seat: null, text: describe(e), hot: e.type === "scuffle" || e.type === "declare" || e.type === "solo" }));
   game.log.push(...talk);
 }
+
+// ---------- compartments ----------
+const wsBase = () => (location.protocol === "https:" ? "wss://" : "ws://") + location.host + location.pathname.replace(/[^/]*$/, "") + "ws";
+function connect(params) {
+  leaveRoom(true);
+  clearTimeout(game.botTimer);
+  game.mode = "net"; game.st = null; game.view = null; game.legal = []; game.lobby = null; game.closed = false;
+  game.log = []; game.logSeen = 0; game.names = []; game.me = null; game.gen = -1; game.ui = freshUi();
+  const q = new URLSearchParams({ name: setup.name || t("setup.defaultName"), lang });
+  if (params.create) q.set("create", "1");
+  else { q.set("room", params.code); const tok = sess.get("lt.token." + params.code); if (tok) q.set("token", tok); }
+  const ws = game.ws = new WebSocket(wsBase() + "?" + q.toString());
+  ws.onmessage = (ev) => { let m; try { m = JSON.parse(ev.data); } catch { return; } onMsg(m); };
+  ws.onclose = () => {
+    if (game.ws !== ws) return;
+    game.ws = null;
+    if (game.closed) return;
+    if (game.code) { setStatus(t("lobby.err.closed"), true); setTimeout(() => { if (!game.ws && !game.closed) connect({ code: game.code }); }, 2500); }
+  };
+}
+function send(m) { if (game.ws && game.ws.readyState === 1) game.ws.send(JSON.stringify(m)); }
+function leaveRoom(silent = false) {
+  if (game.mode !== "net") return;
+  game.closed = true;
+  if (game.ws) { if (!silent) send({ type: "leave" }); try { game.ws.close(); } catch {} }
+  game.ws = null; game.lobby = null; game.view = null; game.legal = []; game.code = null;
+  clearInterval(game.clock); clearTimeout(game.netTimer);
+}
+const roomLine = (e) => ({ seat: e.sys ? null : e.seat, text: e.text, hot: e.hot, room: true });
+function onMsg(m) {
+  switch (m.type) {
+    case "joined":
+      game.code = m.code; game.me = m.seat >= 0 ? m.seat : null;
+      if (m.token) sess.set("lt.token." + m.code, m.token);
+      if (!location.search.includes("room=" + m.code)) history.replaceState(null, "", location.pathname + "?room=" + m.code);
+      break;
+    case "lobby":
+      game.lobby = m;
+      if (m.phase === "lobby" || !game.view) { game.view = null; show("lobby"); }
+      renderLobby();
+      break;
+    case "log":
+      game.log = m.entries.map(roomLine); game.logSeen = 0;
+      renderLog(); renderLobbyLog(); break;
+    case "say":
+      game.log.push(roomLine(m));
+      renderLog(); renderLobbyLog(); break;
+    case "view": {
+      if (!m.view) { game.view = null; game.legal = []; if (game.lobby) { show("lobby"); renderLobby(); } break; }
+      if (m.gen !== game.gen) { game.gen = m.gen; game.log = game.log.filter((l) => l.room); game.logSeen = 0; game.ui = freshUi(); }
+      game.view = m.view; game.legal = m.legal || []; game.names = m.names; game.me = m.me; game.deadline = m.deadline || 0;
+      // the engine's public log becomes lines here, in this tab's language
+      for (; game.logSeen < m.view.log.length; game.logSeen++) {
+        const e = m.view.log[game.logSeen];
+        game.log.push({ seat: null, text: describe(e), hot: e.type === "scuffle" || e.type === "declare" || e.type === "solo" });
+      }
+      show("table"); render(); startClock(); netAuto();
+      break;
+    }
+    case "error":
+      if (m.fatal) { leaveRoom(true); game.mode = "solo"; show("landing"); setStatus(m.key ? t("lobby.err." + m.key) : m.message, true); }
+      else setStatus(m.key ? t("lobby.err." + m.key) : m.message, true);
+      break;
+  }
+}
+// The same courtesy the solo driver extends: answer for the human what cannot matter.
+function netAuto() {
+  clearTimeout(game.netTimer);
+  const v = game.view;
+  if (!v || game.me === null || !v.waitingOn.includes(game.me)) return;
+  const fake = { phase: v.phase, scuffle: v.scuffle };
+  const auto = autoAnswer(fake, game.legal);
+  if (auto) game.netTimer = setTimeout(() => humanAct(auto), 250);
+}
+function setStatus(text, err = false) {
+  const el = $("view-lobby").hidden ? $("landStatus") : $("lbStatus");
+  el.textContent = text; el.classList.toggle("err", err);
+}
+function startClock() {
+  clearInterval(game.clock);
+  game.clock = setInterval(() => { const v = curView(); if (game.mode === "net" && v) renderBar(v); }, 1000);
+}
+function renderLobbyLog() {
+  const box = clear($("lbLog"));
+  for (const l of game.log.filter((x) => x.room).slice(-30)) {
+    if (l.seat === null) box.append(h("div", {}, l.text));
+    else box.append(h("div", { class: "say" }, h("b", {}, nameOfLobby(l.seat)), h("i", {}, "："), l.text));
+  }
+  box.scrollTop = box.scrollHeight;
+}
+const nameOfLobby = (s) => game.lobby?.seats?.find((x) => x.idx === s)?.name ?? nameOf(s);
+function renderLobby() {
+  const L = game.lobby; if (!L) return;
+  const host = game.me === 0;
+  $("lbCode").textContent = L.code;
+  $("lbSeatsLab").textContent = t("lobby.seats", { n: L.seats.length, max: E.MAX_PLAYERS }) + (L.seats.length < E.MIN_PLAYERS ? " · " + t("lobby.need", { min: E.MIN_PLAYERS }) : "");
+  const box = clear($("lbSeats"));
+  for (const s of L.seats) {
+    const tags = [];
+    if (s.idx === 0) tags.push(h("span", { class: "tag host" }, t("lobby.host")));
+    if (s.ai) tags.push(h("span", { class: "tag ai" }, t("lobby.bot")));
+    else if (!s.connected) tags.push(h("span", { class: "tag off" }, t("lobby.away")));
+    else if (s.idx !== 0) tags.push(h("span", { class: "tag" + (s.ready ? " ok" : "") }, s.ready ? t("lobby.ready") : t("lobby.notReady")));
+    if (host && s.ai && L.phase === "lobby") tags.push(h("button", { type: "button", class: "tag x", onclick: () => send({ type: "removeBot", idx: s.idx }) }, t("lobby.remove")));
+    box.append(h("div", { class: "li" }, h("span", { class: "no" }, String(s.idx + 1)), h("span", { class: "av" + (s.ai ? " bot" : "") }, [...s.name][0] || "?"),
+      h("span", { class: "nm" }, s.name, s.idx === game.me ? h("small", { class: "muted" }, ` · ${t("lobby.you")}`) : null), ...tags));
+  }
+  if (host && L.phase === "lobby" && L.seats.length < E.MAX_PLAYERS) box.append(h("button", { type: "button", class: "li empty", onclick: () => send({ type: "addBot" }) }, t("lobby.addBot")));
+  $("lbHost").hidden = !host || L.phase !== "lobby";
+  document.querySelectorAll("#lbLevel button").forEach((b) => b.classList.toggle("on", b.dataset.level === L.settings.level));
+  $("lbSmug").checked = !!L.settings.smuggling;
+  const me = L.seats.find((s) => s.idx === game.me);
+  $("lbReady").hidden = host || !me || L.phase !== "lobby";
+  $("lbReady").textContent = me && me.ready ? t("lobby.notReady") : t("lobby.ready");
+  $("lbReady").classList.toggle("p", !(me && me.ready));
+  $("lbStart").hidden = !host || L.phase !== "lobby";
+  $("lbStart").textContent = t("lobby.start", { n: L.seats.length });
+  const waiting = L.seats.filter((s) => !s.ai && s.idx !== 0 && !s.ready).length;
+  $("lbStatus").classList.remove("err");
+  $("lbStatus").textContent = !me ? t("lobby.spectating")
+    : L.phase !== "lobby" ? t("lobby.rematchWait")
+    : waiting ? t("lobby.waiting", { n: waiting })
+    : host ? t("lobby.canStart") : t("lobby.hostStarts");
+  renderLobbyLog();
+}
+$("lbLeave").addEventListener("click", () => { leaveRoom(); go(""); });
+$("tableLeave").addEventListener("click", () => { leaveRoom(); go(""); });
+$("lbCopy").addEventListener("click", async () => {
+  const url = location.origin + location.pathname + "?room=" + game.code;
+  try { await navigator.clipboard.writeText(url); $("lbCopy").textContent = t("lobby.copied"); setTimeout(() => { $("lbCopy").textContent = t("lobby.copy"); }, 1500); } catch {}
+});
+$("lbShare").addEventListener("click", async () => {
+  const url = location.origin + location.pathname + "?room=" + game.code;
+  if (navigator.share) { try { await navigator.share({ title: t("title"), text: game.code, url }); } catch {} } else $("lbCopy").click();
+});
+$("lbReady").addEventListener("click", () => { const me = game.lobby?.seats.find((s) => s.idx === game.me); send({ type: "ready", ready: !(me && me.ready) }); });
+$("lbStart").addEventListener("click", () => send({ type: "start" }));
+document.querySelectorAll("#lbLevel button").forEach((b) => b.addEventListener("click", () => send({ type: "settings", level: b.dataset.level })));
+$("lbSmug").addEventListener("change", (e) => send({ type: "settings", smuggling: e.target.checked }));
+const chatSend = (inp) => { const text = inp.value.trim(); if (!text) return; send({ type: "chat", text }); inp.value = ""; };
+$("lbSend").addEventListener("click", () => chatSend($("lbChat")));
+$("lbChat").addEventListener("keydown", (e) => { if (e.key === "Enter") chatSend($("lbChat")); });
+$("chatSend").addEventListener("click", () => chatSend($("chatIn")));
+$("chatIn").addEventListener("keydown", (e) => { if (e.key === "Enter") chatSend($("chatIn")); });
+$("btnCreate").addEventListener("click", () => {
+  if (!setup.name) { setStatus(t("lobby.err.needName"), true); $("landName").focus(); return; }
+  connect({ create: true });
+  show("lobby"); $("lbCode").textContent = "····"; clear($("lbSeats")); $("lbStatus").textContent = t("lobby.connecting");
+});
+$("btnJoin").addEventListener("click", () => {
+  const code = $("joinCode").value.trim().toUpperCase();
+  if (!/^[A-Z0-9]{4}$/.test(code)) { setStatus(t("lobby.err.badCode"), true); return; }
+  go("?room=" + code);
+});
+$("joinCode").addEventListener("keydown", (e) => { if (e.key === "Enter") $("btnJoin").click(); });
+$("landName").addEventListener("input", (e) => { setup.name = e.target.value.trim().slice(0, 16); store.set("lt.name", setup.name); $("nameInput").value = setup.name; });
 function describe(e) {
   const L = (k, p) => t("log." + k, p);
   const parts = [];
@@ -268,11 +447,12 @@ function describeParts(e, L, parts) {
 // ---------- rendering ----------
 let handPick = null; // { ids: Set, on: (id) => void, dim: bool }
 function render() {
-  const st = game.st;
-  if (!st) return;
-  const v = E.view(st, game.me);
-  const legal = E.legalActions(st, game.me);
+  const v = curView();
+  if (!v) return;
+  const legal = curLegal();
   handPick = null;
+  $("chatRow").hidden = game.mode !== "net";
+  $("tableLeave").textContent = game.mode === "net" ? t("lobby.leave") : t("table.lobby");
   renderBar(v);
   renderPanel(v, legal);
   renderSeats(v, legal);
@@ -282,7 +462,12 @@ function render() {
 }
 function renderBar(v) {
   $("barLeft").textContent = v.phase === "reveal" ? "" : t("table.stop", { n: num(Math.max(1, Math.ceil(v.turnNo / v.n))) });
-  $("barRight").textContent = `${t("table.pile", { n: v.pile })} · ${t("table.limit", { n: v.handLimit })}`;
+  let right = `${t("table.pile", { n: v.pile })} · ${t("table.limit", { n: v.handLimit })}`;
+  if (game.mode === "net" && game.deadline && v.phase !== "over") {
+    const s = Math.max(0, Math.ceil((game.deadline - Date.now()) / 1000));
+    right += ` · ${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+  }
+  $("barRight").textContent = right;
 }
 
 function seatPickTargets(v, legal) {
@@ -338,7 +523,7 @@ function renderSeats(v, legal) {
 
 function renderHand(v) {
   const box = clear($("hand"));
-  if (v.phase === "reveal") return;
+  if (v.phase === "reveal" || !v.me) return;
   const mine = v.me.items;
   box.append(h("span", { class: "lab" }, t("table.yourBag", { n: mine.length, max: v.handLimit })));
   const row = h("div", { class: "hand" });
@@ -627,13 +812,15 @@ function overCard(v) {
     table.append(h("tr", {}, h("td", {}, nameOf(s) + (s === game.me ? ` (${t("table.you")})` : "")), h("td", { class: sd.gang === E.TIMEKEEPERS ? "watch" : "seal" }, gangName(sd.gang)), h("td", {}, tradeName(sd.trade)), h("td", { class: "icons" }, h("div", { class: "row" }, ...sd.hand.map((x) => h("span", { title: itemName(x.kind) }, icon(x.kind, 16)))))));
   }
   wrap.append(h("div", { class: "card" }, table));
-  wrap.append(btn(t("table.again"), "p", () => startGame()));
+  if (game.mode === "solo") wrap.append(btn(t("table.again"), "p", () => startGame()));
+  else if (game.me === 0) wrap.append(btn(t("table.again"), "p", () => send({ type: "rematch" })));
+  else wrap.append(h("p", { class: "hint center" }, t("lobby.rematchWait")));
   return wrap;
 }
 
 function renderOverlay(v) {
   const ov = $("overlay");
-  if (v.phase !== "reveal" || v.ready[game.me]) { ov.hidden = true; return; }
+  if (v.phase !== "reveal" || game.me === null || v.ready[game.me]) { ov.hidden = true; return; }
   ov.hidden = false;
   clear(ov);
   const me = v.me, gang = me.gang, other = E.other(gang);
@@ -652,22 +839,34 @@ function renderOverlay(v) {
 const kindOf = (v, id) => (v.me.items.find((x) => x.id === id) || {}).kind || id.replace(/\d+$/, "");
 
 // ---------- routing ----------
-const views = ["landing", "setup", "table"];
+const views = ["landing", "setup", "lobby", "table"];
 function show(name) { for (const v of views) $("view-" + v).hidden = v !== name; if (name !== "table") $("overlay").hidden = true; }
 function go(q) { history.pushState(null, "", location.pathname + q); route(); }
 function route() {
   const q = new URLSearchParams(location.search);
+  const code = (q.get("room") || "").toUpperCase();
+  $("landStatus").textContent = ""; $("landStatus").classList.remove("err");
+  $("landName").value = setup.name;
   if (q.has("play")) {
+    leaveRoom(true); game.mode = "solo";
     game.auto = q.get("auto") === "1";
     if (game.auto && !game.st) { show("setup"); startGame(); return; }
     if (!game.st) show("setup"); else show("table");
     return;
   }
+  if (/^[A-Z0-9]{4}$/.test(code)) {
+    if (game.mode === "net" && game.code === code && game.ws) { show(game.view ? "table" : "lobby"); return; }
+    if (!setup.name) { show("landing"); $("joinCode").value = code; setStatus(t("lobby.err.needName"), true); $("landName").focus(); return; }
+    connect({ code });
+    show("lobby"); $("lbCode").textContent = code; clear($("lbSeats")); $("lbStatus").textContent = t("lobby.connecting");
+    return;
+  }
+  leaveRoom(true);
   clearTimeout(game.botTimer);
-  game.st = null;
+  game.mode = "solo"; game.st = null; game.view = null;
   show("landing");
 }
-document.querySelectorAll("[data-link]").forEach((a) => a.addEventListener("click", (e) => { e.preventDefault(); go(""); }));
+document.querySelectorAll("[data-link]").forEach((a) => a.addEventListener("click", (e) => { e.preventDefault(); leaveRoom(); go(""); }));
 window.addEventListener("popstate", route);
 
 setLang(new URLSearchParams(location.search).get("lang") || store.get("lt.lang", navigator.language.startsWith("zh") ? "zh-Hant" : "en"));
