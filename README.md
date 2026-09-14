@@ -4,7 +4,7 @@ A browser card game of hidden gangs for 3 to 10 passengers. The 1930s, the last 
 
 A free fan project, not affiliated with any publisher. All art and prose are our own. The play is inspired by *Die Kutschfahrt zur Teufelsburg*, a card game designed by Michael Palm and Lukas Zach; game rules and mechanics are not copyrightable, and this is a clean-room implementation under its own name and setting.
 
-Live at https://games.csiesheep.com/last_train/ (a placeholder until M3; noindex until M5).
+Live at https://games.csiesheep.com/last_train/ — solo against AI passengers, or a compartment with friends.
 
 ## How it works
 
@@ -23,11 +23,13 @@ URLs are query strings on the page so the same build works at any prefix:
 ## Milestones
 
 1. **M0 Scaffold**: router, placeholder page, deploy. Done.
-2. **M1 Engine**: deck, turn machine, trades, scuffles with support, declarations, `view(state, seat)`, tests.
-3. **M2 Bots**: a belief over gang assignments and hidden hands, trade and scuffle policies, three levels, a bot-vs-bot harness.
-4. **M3 Solo**: the full game against bots in the browser, with bot table talk.
-5. **M4 Rooms**: Durable Object, phase timers, chat, bot fill, disconnect takeover.
-6. **M5 Ship**: rules page, SEO, hub card, sitemap.
+2. **M1 Engine**: deck, turn machine, trades, scuffles with support, declarations, `view(state, seat)`, tests. Done.
+3. **M2 Bots**: a belief over gang assignments and hidden hands, trade and scuffle policies, three levels, a bot-vs-bot harness. Done.
+4. **M3 Solo**: the full game against bots in the browser, with bot table talk. Done.
+5. **M4 Rooms**: Durable Object, step clocks, chat, bot fill, disconnect takeover. Done.
+6. **M5 Ship**: rules page, SEO, social image, hub tile, sitemap. Done.
+
+Rules of the carriage online: 60 s for your turn, 30 s to answer a trade, 15 s to declare support or answer a power window, 20 s to show your cards; when time runs out the carriage decides for whoever has not acted. A player who drops is played by a bot after 15 s and gets the seat back by reopening the link in the same tab. The host can add AI passengers to fill seats, and a compartment nobody is connected to is deleted after 30 minutes.
 
 ## Develop
 
