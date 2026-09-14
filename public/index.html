@@ -121,18 +121,27 @@
 <!-- ===== Compartment lobby ===== -->
 <main id="view-lobby" class="scr" hidden>
   <div class="bar"><button type="button" id="lbLeave" class="linkish" data-t="lobby.leave"></button><span data-t="lobby.room"></span></div>
-  <div class="card dark ticket codebox"><span class="lab" data-t="lobby.code"></span><div class="code lat" id="lbCode">····</div><p class="hint" id="lbStatus"></p></div>
-  <div class="row"><button type="button" class="btn sm" id="lbCopy" data-t="lobby.copy"></button><button type="button" class="btn sm" id="lbShare" data-t="lobby.share"></button></div>
-  <span class="lab" id="lbSeatsLab"></span>
-  <div class="stack" id="lbSeats"></div>
-  <div id="lbHost" class="stack" hidden>
-    <span class="lab" data-t="lobby.level"></span>
+  <!-- The ticket: the code stamped on a railway ticket, its status as a red stamp. -->
+  <div class="tix">
+    <span class="no lat" data-t="stamp"></span>
+    <span class="acts"><button type="button" class="linkish tixlink" id="lbCopy" data-t="lobby.copy"></button> · <button type="button" class="linkish tixlink" id="lbShare" data-t="lobby.share"></button></span>
+    <div class="in"><span class="lab" data-t="lobby.code"></span><div class="code lat" id="lbCode">····</div></div>
+    <span class="stamp" id="lbStatus"></span>
+    <span class="punch"></span>
+  </div>
+  <!-- The conductor's manifest: one numbered row per seat. -->
+  <div class="card manifest">
+    <div class="row between"><span class="lab" id="lbSeatsLab"></span><span class="hint" id="lbNeed"></span></div>
+    <table id="lbSeats"></table>
+  </div>
+  <div id="lbHost" class="card stack" hidden>
+    <div class="row between"><span class="lab" data-t="lobby.settings"></span><span class="tag host" data-t="lobby.onlyHost"></span></div>
     <div class="seg" id="lbLevel">
       <button type="button" data-level="easy" data-t="setup.easy"></button>
       <button type="button" data-level="normal" data-t="setup.normal"></button>
       <button type="button" data-level="hard" data-t="setup.hard"></button>
     </div>
-    <label class="card check"><span><b data-t="lobby.smuggling"></b><span class="hint block" data-t="setup.smugglingHint"></span></span><input type="checkbox" id="lbSmug"></label>
+    <label class="check"><span><b data-t="lobby.smuggling"></b><span class="hint block" data-t="setup.smugglingHint"></span></span><input type="checkbox" id="lbSmug"></label>
   </div>
   <div class="log" id="lbLog"></div>
   <div class="row"><input id="lbChat" maxlength="200" autocomplete="off"><button type="button" class="btn sm" id="lbSend">↑</button></div>

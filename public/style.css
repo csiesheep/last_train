@@ -138,14 +138,31 @@ html[lang=en] .land .h1 { font-size: 42px; }
 .opt input { width: 22px; height: 22px; accent-color: var(--brass-hi); }
 
 /* lobby */
-.codebox { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 18px; text-align: center; }
-.code { font-size: 46px; font-weight: 700; letter-spacing: 0.3em; line-height: 1.1; }
-.li { display: flex; align-items: center; gap: 10px; min-height: 44px; border: 1px solid var(--line); border-radius: 2px; background: var(--card); padding: 6px 10px; }
-.li .no { font-family: var(--lat); font-size: 16px; color: var(--grey); width: 18px; }
-.li .av { width: 32px; height: 32px; border-radius: 50%; background: var(--deep); border: 1px solid var(--line); display: flex; align-items: center; justify-content: center; font-size: 14px; }
-.li .av.bot { border-color: var(--steel); color: var(--steel); }
-.li .nm { flex: 1; }
-.li.empty { justify-content: center; border-style: dashed; color: var(--grey); background: transparent; cursor: pointer; }
+/* the ticket: a railway ticket with the code set on it */
+.tix { position: relative; height: 150px; border: 1px solid var(--brass); border-radius: 3px; overflow: hidden; background: var(--deep) url(art/ticket.jpg) center / cover no-repeat; color: #2b2418; }
+.tix .in { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
+.tix .in .lab { color: #6b5a3a; letter-spacing: 0.3em; }
+.tix .code { font-size: 54px; font-weight: 700; letter-spacing: 0.32em; line-height: 1; margin-left: 0.32em; color: #2b2418; }
+.tix .no { position: absolute; left: 14px; top: 10px; font-size: 12px; letter-spacing: 0.18em; color: #6b5a3a; }
+.tix .acts { position: absolute; right: 14px; top: 8px; font-size: 12px; letter-spacing: 0.1em; color: #6b5a3a; }
+.tixlink { color: #6b5a3a; font-size: 12px; letter-spacing: 0.1em; text-decoration: underline; text-underline-offset: 3px; }
+.tixlink:hover { color: #2b2418; }
+.tix .stamp { position: absolute; right: 14px; bottom: 10px; max-width: 60%; font-size: 11px; letter-spacing: 0.18em; color: var(--rust); border: 1.5px solid var(--rust); padding: 2px 8px; border-radius: 2px; transform: rotate(-6deg); opacity: 0.9; font-weight: 700; text-align: center; }
+.tix .stamp:empty { display: none; }
+.tix .punch { position: absolute; left: 18px; bottom: 14px; width: 14px; height: 14px; border-radius: 50%; background: var(--ground); border: 1px solid #6b5a3a; }
+/* the manifest */
+.manifest { padding: 4px 10px 8px; }
+.manifest .row.between { padding: 6px 0; }
+.manifest table { font-size: 14px; }
+.manifest td { padding: 7px 4px; vertical-align: middle; }
+.manifest td.no { width: 22px; color: var(--grey); font-size: 15px; }
+.manifest td.av { width: 36px; }
+.manifest td.tags { text-align: right; }
+.manifest tr.add td { color: var(--grey); cursor: pointer; }
+.manifest tr.add:hover td { color: var(--bone); }
+.manifest tr.empty td { color: var(--line); }
+.check { display: flex; justify-content: space-between; align-items: center; gap: 12px; cursor: pointer; }
+.check input { width: 22px; height: 22px; accent-color: var(--brass-hi); }
 .tag.ok { color: var(--jade); border-color: var(--jade); }
 .tag.off { color: var(--rust); border-color: var(--rust); }
 .tag.host { color: var(--brass-hi); border-color: var(--brass-hi); }

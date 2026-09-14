@@ -342,7 +342,8 @@ function renderLobby() {
   const L = game.lobby; if (!L) return;
   const host = game.me === 0;
   $("lbCode").textContent = L.code;
-  $("lbSeatsLab").textContent = t("lobby.seats", { n: L.seats.length, max: E.MAX_PLAYERS }) + (L.seats.length < E.MIN_PLAYERS ? " · " + t("lobby.need", { min: E.MIN_PLAYERS }) : "");
+  $("lbSeatsLab").textContent = t("lobby.seats", { n: L.seats.length, max: E.MAX_PLAYERS });
+  $("lbNeed").textContent = L.seats.length < E.MIN_PLAYERS ? t("lobby.need", { min: E.MIN_PLAYERS }) : "";
   const box = clear($("lbSeats"));
   for (const s of L.seats) {
     const tags = [];
@@ -351,10 +352,14 @@ function renderLobby() {
     else if (!s.connected) tags.push(h("span", { class: "tag off" }, t("lobby.away")));
     else if (s.idx !== 0) tags.push(h("span", { class: "tag" + (s.ready ? " ok" : "") }, s.ready ? t("lobby.ready") : t("lobby.notReady")));
     if (host && s.ai && L.phase === "lobby") tags.push(h("button", { type: "button", class: "tag x", onclick: () => send({ type: "removeBot", idx: s.idx }) }, t("lobby.remove")));
-    box.append(h("div", { class: "li" }, h("span", { class: "no" }, String(s.idx + 1)), s.face ? h("img", { class: "av face", src: "art/face_" + s.face + ".jpg", alt: "" }) : h("span", { class: "av" + (s.ai ? " bot" : "") }, [...s.name][0] || "?"),
-      h("span", { class: "nm" }, s.name, s.idx === game.me ? h("small", { class: "muted" }, ` · ${t("lobby.you")}`) : null), ...tags));
+    box.append(h("tr", {}, h("td", { class: "no lat" }, String(s.idx + 1)),
+      h("td", { class: "av" }, s.face ? h("img", { class: "face sm", src: "art/face_" + s.face + ".jpg", alt: "" }) : h("span", { class: "face sm init" }, [...s.name][0] || "?")),
+      h("td", { class: "nm" }, s.name, s.idx === game.me ? h("small", { class: "muted" }, ` · ${t("lobby.you")}`) : null),
+      h("td", { class: "tags" }, h("div", { class: "row", style: "justify-content:flex-end;gap:6px" }, ...tags))));
   }
-  if (host && L.phase === "lobby" && L.seats.length < E.MAX_PLAYERS) box.append(h("button", { type: "button", class: "li empty", onclick: () => send({ type: "addBot" }) }, t("lobby.addBot")));
+  let next = L.seats.length + 1;
+  if (host && L.phase === "lobby" && L.seats.length < E.MAX_PLAYERS) box.append(h("tr", { class: "add", onclick: () => send({ type: "addBot" }) }, h("td", { class: "no lat" }, String(next++)), h("td", { colspan: "3" }, t("lobby.addBot"))));
+  if (next <= E.MAX_PLAYERS) box.append(h("tr", { class: "empty" }, h("td", { class: "no lat" }, String(next)), h("td", { colspan: "3" }, t("lobby.empty"))));
   $("lbHost").hidden = !host || L.phase !== "lobby";
   document.querySelectorAll("#lbLevel button").forEach((b) => b.classList.toggle("on", b.dataset.level === L.settings.level));
   $("lbSmug").checked = !!L.settings.smuggling;
