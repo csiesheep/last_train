@@ -125,7 +125,7 @@ const game = {
   me: 0, names: [], faces: [], level: "normal", rng: E.makeRng(E.randomSeed()), botTimer: null, netTimer: null,
   log: [], logSeen: 0, flashUntil: 0, auto: false,
   ws: null, code: null, lobby: null, closed: false, clock: null, gen: -1, deadline: 0,
-  ui: freshUi(), peekSeat: null,
+  ui: freshUi(), peekSeat: null, result: null,
 };
 const curView = () => (game.mode === "solo" ? (game.st ? E.view(game.st, game.me) : null) : game.view);
 const curLegal = () => (game.mode === "solo" ? (game.st ? E.legalActions(game.st, game.me) : []) : game.legal);
@@ -147,7 +147,7 @@ function startGame() {
   game.me = 0; game.level = setup.level;
   game.faces = [setup.face, ...freeFaces(game.rng, [setup.face], E.shuffle).slice(0, n - 1)];
   game.names = soloNames();
-  game.log = []; game.logSeen = 0; game.flashUntil = 0; game.ui = freshUi();
+  game.log = []; game.logSeen = 0; game.flashUntil = 0; game.ui = freshUi(); game.result = null;
   clearTimeout(game.botTimer);
   show("table");
   tick();
@@ -228,6 +228,7 @@ function afterStep() {
   for (; game.logSeen < st.log.length; game.logSeen++) {
     const e = st.log[game.logSeen];
     addSys(describe(e), e.type === "scuffle" || e.type === "declare" || e.type === "solo");
+    if (e.type === "scuffle") game.result = e;
     if (e.type === "scuffle" || e.type === "declare") game.flashUntil = Date.now() + 1500;
     for (let s = 0; s < st.n; s++) {
       if (s === game.me && !game.auto) continue;
@@ -303,6 +304,7 @@ function onMsg(m) {
       for (; game.logSeen < m.view.log.length; game.logSeen++) {
         const e = m.view.log[game.logSeen];
         game.log.push({ seat: null, text: describe(e), hot: e.type === "scuffle" || e.type === "declare" || e.type === "solo" });
+        if (e.type === "scuffle") game.result = e;
       }
       show("table"); render(); startClock(); netAuto();
       break;
@@ -484,7 +486,6 @@ function render() {
     if (gang) {
       game.peekSeat = null;
       addSys(t("table.peeked", { name: nameOf(seat), gang: gangName(gang), trade: trade ? tradeName(trade) : "?" }), true);
-      openPassengerSheet(v, seat);
     }
   }
 }
@@ -735,8 +736,48 @@ function renderLog() {
     if (l.seat === null) box.append(h("div", { class: "sys" + (l.hot ? " hot" : "") }, l.text));
     else box.append(h("div", { class: "msg" + (l.seat === game.me ? " me" : "") }, faceEl(l.seat, "xs"), h("div", { class: "bub" }, h("b", {}, nameOf(l.seat)), l.text)));
   }
-  $("talkCount").textContent = t("table.talkRecent", { n: lines.length });
+  const last = lines[lines.length - 1];
+  $("talkCount").textContent = folds.talk ? t("table.talkRecent", { n: lines.length }) : last ? (last.seat === null ? last.text : nameOf(last.seat) + "：" + last.text) : "";
   box.scrollTop = box.scrollHeight;
+  renderJourney();
+}
+// Two folding panels; the choice is remembered per browser. Talk starts open in a compartment, closed solo.
+const folds = { talk: null, log: store.get("lt.logOpen", "0") === "1" };
+function applyFolds() {
+  if (folds.talk === null) folds.talk = store.get("lt.talkOpen", "") === "" ? game.mode === "net" : store.get("lt.talkOpen") === "1";
+  $("talk").classList.toggle("open", folds.talk); $("talkBody").hidden = !folds.talk;
+  $("glog").classList.toggle("open", folds.log); $("glogBody").hidden = !folds.log;
+}
+$("talkHd").addEventListener("click", () => { folds.talk = !folds.talk; store.set("lt.talkOpen", folds.talk ? "1" : "0"); applyFolds(); renderLog(); });
+$("glogHd").addEventListener("click", () => { folds.log = !folds.log; store.set("lt.logOpen", folds.log ? "1" : "0"); applyFolds(); renderJourney(); });
+// The journey log: the engine's public record, grouped by stop, the actor's face on the left,
+// the items involved as small pictures below.
+const actorOf = (e) => e.first ?? e.seat ?? e.from ?? e.attacker ?? e.winner ?? null;
+function renderJourney() {
+  const v = curView(); if (!v) return;
+  applyFolds();
+  const events = v.log;
+  const stops = events.length ? Math.max(1, Math.ceil(events[events.length - 1].t / v.n)) : 0;
+  const lastText = events.length ? describe(events[events.length - 1]) : "";
+  $("glogPreview").textContent = folds.log ? t("table.logCount", { stops: num(stops), n: events.length }) : lastText;
+  const body = clear($("glogBody"));
+  if (!folds.log) return;
+  let stop = 0;
+  for (const e of events) {
+    const st = Math.max(1, Math.ceil(e.t / v.n));
+    if (st !== stop) { stop = st; body.append(h("div", { class: "stopline" }, h("span", {}, t("table.stop", { n: num(st) })), h("span", { class: "ln" }))); }
+    const who = actorOf(e);
+    const tags = [];
+    for (const a of e.announced || []) tags.push(thumb(a.kind, () => openItemSheet(a.kind)));
+    if (e.kind) tags.push(thumb(e.kind, () => openItemSheet(e.kind)));
+    for (const [sid, x] of Object.entries(e.shown || {})) {
+      const side = Number(sid) === e.attacker || e.support?.[sid] === "attacker" ? "atk" : Number(sid) === e.defender || e.support?.[sid] === "defender" ? "def" : "";
+      for (const k of x.items || []) { const b = thumb(k, () => openItemSheet(k)); b.firstChild.classList.add(side); tags.push(b); }
+      if (x.trade) { const b = h("button", { type: "button", class: "thumbbtn", title: tradeName(x.trade), onclick: () => openTradeSheet(x.trade, Number(sid)) }, tradeImg(x.trade, "thumb " + side)); tags.push(b); }
+    }
+    body.append(h("div", { class: "ev" + (e.type === "scuffle" || e.type === "declare" || e.type === "solo" ? " hot" : "") },
+      who != null ? faceEl(who, "xs") : h("span", {}), h("div", {}, describe(e), tags.length ? h("div", { class: "tags" }, ...tags) : null)));
+  }
 }
 
 // ---------- the panel ----------
@@ -754,6 +795,7 @@ function renderPanel(v, legal) {
   const ui = game.ui;
   const me = game.me;
   const mineOnTurn = v.phase === "turn" && v.turn === me;
+  if (game.result && !(v.phase === "scuffle" && v.scuffle)) p.append(resultCard(v, game.result));
 
   if (v.phase === "over") return p.append(overCard(v));
 
@@ -958,6 +1000,34 @@ function scuffleCard(v, legal) {
       break;
     }
   }
+  return card;
+}
+
+// What the last scuffle came to, from the attacker's side, until the player says they saw it.
+function resultCard(v, e) {
+  const card = h("div", { class: "card fight stack" });
+  const a = e.attacker, d = e.defender, loser = e.winner === a ? d : a;
+  let title, lines = [];
+  if (e.stopped != null) { title = t("table.res.stopped"); lines.push(t("table.res.stoppedBy", { p: nameOf(e.stopped) })); }
+  else if (e.doctored != null) { title = t("table.res.doctored"); lines.push(t("table.res.doctoredBy", { d: nameOf(e.doctored) })); }
+  else if (e.tie) { title = t("table.res.tie"); lines.push(e.drew ? t("table.res.drew", { a: nameOf(a) }) : t("log.drewNothing")); }
+  else {
+    title = t(e.winner === a ? "table.res.won" : "table.res.lost", { a: nameOf(a) });
+    lines.push(t(e.choice === "take" ? "table.res.take" : "table.res.peek", { w: nameOf(e.winner), l: nameOf(loser) }));
+    if (e.winner === game.me && e.choice !== "take") {
+      const gang = (v.knowledge.filter((k) => k.k === "gang" && k.seat === loser).pop() || {}).gang;
+      const trade = (v.knowledge.filter((k) => k.k === "trade" && k.seat === loser).pop() || {}).trade;
+      if (gang) lines.push(t("table.res.seen", { gang: gangName(gang), trade: trade ? tradeName(trade) : "?" }));
+    }
+    if (loser === game.me && e.choice === "take") {
+      const lost = v.knowledge.filter((k) => k.k === "lost" && k.at === e.t).pop();
+      if (lost) lines.push(t("table.res.taken", { item: itemName(lost.kind) }));
+    }
+  }
+  const count = e.stopped == null && e.doctored == null ? h("span", { class: "hint nowrap" }, t("log.count", { swords: e.swords, shields: e.shields }).replace(/[。.]$/, "")) : null;
+  card.append(h("div", { class: "title disp" }, h("span", {}, title), count));
+  for (const l of lines) card.append(h("p", { class: "small" }, l));
+  card.append(btn(t("table.gotIt"), "p", () => { game.result = null; render(); }));
   return card;
 }
 
