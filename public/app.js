@@ -73,6 +73,7 @@ function setLang(l) {
   store.set("lt.lang", lang);
   document.documentElement.lang = lang;
   document.querySelectorAll("[data-t]").forEach((el) => { el.textContent = t(el.dataset.t); });
+  document.querySelectorAll("[data-ph]").forEach((el) => { el.placeholder = t(el.dataset.ph); });
   renderSetup();
   if (game.mode === "solo" && game.st) { game.names = soloNames(); rebuildLog(); render(); }
   if (game.mode === "net") { if (game.lobby) renderLobby(); if (game.view) { rebuildLog(); render(); } }
