@@ -399,6 +399,7 @@ export function apply(prev, action) {
         const f = st.scuffle;
         moveItem(st, action.item, seat, f.priest);
         learn(st, f.priest, { k: "got", from: seat, id: action.item, kind: st.items[action.item] });
+        learn(st, seat, { k: "gave", to: f.priest, id: action.item, kind: st.items[action.item] });
         log(st, { type: "scuffle", attacker: f.attacker, defender: f.defender, stopped: f.priest, paid: true });
         st.scuffle = null;
         overLimit(st, f.priest);
@@ -602,6 +603,7 @@ export function apply(prev, action) {
       needMine(action.item);
       moveItem(st, action.item, seat, action.to);
       learn(st, action.to, { k: "got", from: seat, id: action.item, kind: st.items[action.item] });
+      learn(st, seat, { k: "gave", to: action.to, id: action.item, kind: st.items[action.item] });
       log(st, { type: "gift", from: seat, to: action.to });
       if (hand(st, seat).length <= handLimit(st)) st.pending.shift();
       overLimit(st, action.to);
@@ -666,6 +668,8 @@ function swap(st, from, to, given, returned) {
   moveItem(st, returned, to, from);
   learn(st, to, { k: "got", from, id: given, kind: st.items[given] });
   learn(st, from, { k: "got", from: to, id: returned, kind: st.items[returned] });
+  learn(st, from, { k: "gave", to, id: given, kind: st.items[given] });
+  learn(st, to, { k: "gave", to: from, id: returned, kind: st.items[returned] });
   const mirror = st.items[given] === "broken_mirror" || st.items[returned] === "broken_mirror";
   t.texts = [];
   if (!mirror) {
@@ -724,6 +728,7 @@ function settlePasses(st) {
     const to = step(s);
     hand(st, to).push(t.passes[s]);
     learn(st, to, { k: "got", from: s, id: t.passes[s], kind: st.items[t.passes[s]] });
+    learn(st, s, { k: "gave", to, id: t.passes[s], kind: st.items[t.passes[s]] });
   }
   t.entry.passed = seatsIn.length;
   t.passes = null;
