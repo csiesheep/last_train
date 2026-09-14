@@ -1,6 +1,6 @@
 # The Last Night Train 末班夜車
 
-A browser card game of hidden gangs for 3 to 10 passengers. The 1930s, the last train out; everyone in the carriage secretly belongs to the Timekeepers or the Sealbearers, has a trade with one trick to it, and a piece of luggage. Trade items to learn who is who, start scuffles to see cards or take things, and show your hand when your side holds three pocket watches or three jade seals and you can say whose bags they are in. Play solo against AI passengers, or open an online compartment and share a four-letter code with friends; bots fill any empty seats. English and Traditional Chinese.
+A browser card game of hidden gangs for 3 to 10 passengers. The 1930s, the last train out; everyone in the carriage secretly belongs to the Clocktower Society or the Seal Society, has a trade with one trick to it, and a piece of luggage. Trade items to learn who is who, start scuffles to see cards or take things, and show your hand when your side holds three pocket watches or three jade seals and you can say whose bags they are in. Play solo against AI passengers, or open an online compartment and share a four-letter code with friends; bots fill any empty seats. English and Traditional Chinese.
 
 A free fan project, not affiliated with any publisher. All art and prose are our own. The play is inspired by *Die Kutschfahrt zur Teufelsburg*, a card game designed by Michael Palm and Lukas Zach; game rules and mechanics are not copyrightable, and this is a clean-room implementation under its own name and setting.
 

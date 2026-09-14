@@ -115,3 +115,25 @@ test("room: a token reclaims the seat, a stranger after departure only watches",
   assert.equal(last(s2[s2.length - 1], "joined").seat, -1);
   assert.equal(room.room.seats.length, 3);
 });
+
+test("room: every seat gets a different face, a requested free face is honoured, and bots are named after theirs", async () => {
+  const sent = [];
+  globalThis.WebSocketPair = pairFactory(sent);
+  const { ctx, sockets } = fakeCtx();
+  const room = new Room(ctx, {});
+  await room.fetch(new Request("https://room/ws?create=1&room=TEST&name=Host&lang=en&face=margot", { headers: { Upgrade: "websocket" } }));
+  await room.fetch(new Request("https://room/ws?room=TEST&name=P1&face=margot", { headers: { Upgrade: "websocket" } }));
+  await room.fetch(new Request("https://room/ws?room=TEST&name=P2&face=nobody", { headers: { Upgrade: "websocket" } }));
+  for (let i = 0; i < 7; i++) await room.webSocketMessage(sockets[0], JSON.stringify({ type: "addBot" }));
+  const seats = room.room.seats;
+  assert.equal(seats.length, 10);
+  assert.equal(seats[0].face, "margot", "the host got the face they asked for");
+  assert.notEqual(seats[1].face, "margot", "a taken face goes to someone else");
+  assert.equal(new Set(seats.map((s) => s.face)).size, 10, "ten different faces");
+  for (const s of seats) assert.ok(s.face, "everyone has a face");
+  const bots = seats.filter((s) => s.ai);
+  assert.equal(bots.length, 7);
+  for (const b of bots) assert.ok(/^[A-Z]/.test(b.name) && !/^Bot/.test(b.name), `a bot is named after its face: ${b.name}`);
+  const lobby = [...sockets[0].sent].reverse().find((m) => m.type === "lobby");
+  assert.equal(lobby.seats[3].face, bots[0].face, "the lobby shows faces");
+});

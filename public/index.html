@@ -45,7 +45,7 @@
   "alternateName": "末班夜車",
   "url": "https://games.csiesheep.com/last_train/",
   "image": "https://games.csiesheep.com/last_train/og-image.png",
-  "description": "A free browser card game of hidden gangs for three to ten passengers. Everyone on a 1930s night train secretly belongs to the Timekeepers or the Sealbearers, carries a trade with one trick and a piece of luggage. Trade items to learn who is who, start scuffles to see cards or take things, and show your hand once your side holds three pocket watches or three jade seals. Play alone against AI passengers, or open an online compartment and share a four-letter code with friends. English and Traditional Chinese.",
+  "description": "A free browser card game of hidden gangs for three to ten passengers. Everyone on a 1930s night train secretly belongs to the Clocktower Society or the Seal Society, carries a trade with one trick and a piece of luggage. Trade items to learn who is who, start scuffles to see cards or take things, and show your hand once your side holds three pocket watches or three jade seals. Play alone against AI passengers, or open an online compartment and share a four-letter code with friends. English and Traditional Chinese.",
   "genre": ["Social deduction", "Card game", "Party game", "Board game"],
   "numberOfPlayers": { "@type": "QuantitativeValue", "minValue": 1, "maxValue": 10 },
   "playMode": ["SinglePlayer", "MultiPlayer"],
@@ -71,13 +71,16 @@
 
 <!-- ===== Landing ===== -->
 <main id="view-landing" class="scr" hidden>
-  <section class="card dark ticket hero">
-    <p class="stamp lat" data-t="stamp"></p>
-    <h1 class="disp h1" data-t="title"></h1>
-    <p class="lat sub" data-t="titleLat"></p>
-    <hr>
-    <p class="small" data-t="tagline"></p>
+  <section class="hero">
+    <img src="art/hero.jpg" alt="" width="1080" height="600" fetchpriority="high">
+    <div class="fade"></div>
+    <div class="title">
+      <p class="stamp lat" data-t="stamp"></p>
+      <h1 class="disp h1" data-t="title"></h1>
+      <p class="lat sub" data-t="titleLat"></p>
+    </div>
   </section>
+  <p class="small" data-t="tagline"></p>
   <button type="button" class="btn p" id="btnPlay" data-t="landing.play"></button>
   <label class="field"><span class="lab" data-t="landing.name"></span><input id="landName" maxlength="16" autocomplete="off"></label>
   <button type="button" class="btn" id="btnCreate" data-t="landing.create"></button>
@@ -99,6 +102,9 @@
   <h2 class="disp h2" data-t="setup.title"></h2>
   <p class="hint" id="setupSub"></p>
   <label class="field"><span class="lab" data-t="setup.name"></span><input id="nameInput" maxlength="16" autocomplete="off"></label>
+  <span class="lab" data-t="setup.face"></span>
+  <div class="faces" id="facePick"></div>
+  <p class="hint" data-t="setup.faceHint"></p>
   <span class="lab" data-t="setup.players"></span>
   <div class="stepper card"><button type="button" class="btn ghost" id="pMinus">&minus;</button><b class="disp" id="pCount">六</b><button type="button" class="btn ghost" id="pPlus">+</button></div>
   <p class="hint" data-t="setup.hint"></p>
@@ -137,6 +143,7 @@
 
 <!-- ===== The carriage ===== -->
 <main id="view-table" class="scr table" hidden>
+  <div class="backdrop" aria-hidden="true"><img src="art/carriage.jpg" alt=""><div class="veil"></div></div>
   <div class="bar"><span id="barLeft"></span><span id="barRight"></span></div>
   <div class="seats" id="seats"></div>
   <div id="panel"></div>
@@ -149,6 +156,9 @@
 
 <!-- ===== Reveal overlay ===== -->
 <div id="overlay" class="overlay" hidden></div>
+<!-- ===== Card and trade texts, as a bottom sheet ===== -->
+<div id="scrim" class="scrim" hidden></div>
+<div id="sheet" class="sheet" hidden></div>
 
 <script type="module" src="app.js"></script>
 </body>

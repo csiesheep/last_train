@@ -8,6 +8,7 @@ import * as B from "./shared/bots.js";
 import { sayAction, sayResult } from "./shared/talk.js";
 import en from "./i18n/en.js";
 import zh from "./i18n/zh-Hant.js";
+import { PASSENGERS, FACE_IDS, isFace, passengerName, freeFaces } from "./shared/passengers.js";
 
 const LANGS = { en, "zh-Hant": zh };
 const $ = (id) => document.getElementById(id);
@@ -56,6 +57,7 @@ const PATHS = {
   drink: '<path d="M7 3h10l-1 9a4 4 0 0 1-8 0z"/><path d="M12 16v5"/><path d="M9 21h6"/>',
   sword: '<path d="M4 20l11-11"/><path d="M14 5l5 5"/><path d="M12 7l5 5"/><path d="M6 14l4 4"/>',
   shield: '<path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"/>',
+  out: '<circle cx="12" cy="12" r="8"/><path d="M8 12h8"/>',
 };
 const icon = (kind, size = 18) => svg(PATHS[kind] || '<circle cx="12" cy="12" r="7"/>', size);
 
@@ -71,9 +73,8 @@ function setLang(l) {
   store.set("lt.lang", lang);
   document.documentElement.lang = lang;
   document.querySelectorAll("[data-t]").forEach((el) => { el.textContent = t(el.dataset.t); });
-  $("nameInput").placeholder = t("setup.defaultName");
   renderSetup();
-  if (game.mode === "solo" && game.st) { game.names[game.me] = setup.name || t("setup.defaultName"); rebuildLog(); render(); }
+  if (game.mode === "solo" && game.st) { game.names = soloNames(); rebuildLog(); render(); }
   if (game.mode === "net") { if (game.lobby) renderLobby(); if (game.view) { rebuildLog(); render(); } }
 }
 $("langBtn").addEventListener("click", () => setLang(lang === "en" ? "zh-Hant" : "en"));
@@ -90,8 +91,16 @@ const setup = {
   level: store.get("lt.level", "normal"),
   name: store.get("lt.name", ""),
   smuggling: store.get("lt.smug", "0") === "1",
+  face: store.get("lt.face", ""),
 };
+if (!isFace(setup.face)) setup.face = FACE_IDS[Math.floor(Math.random() * FACE_IDS.length)];
+// Solo names come from the faces; the human's typed name, if any, wins for their seat.
+const soloNames = () => game.faces.map((f, i) => (i === game.me && setup.name ? setup.name : passengerName(f, lang)));
 function renderSetup() {
+  $("nameInput").placeholder = passengerName(setup.face, lang);
+  const grid = clear($("facePick"));
+  for (const p of PASSENGERS) grid.append(h("button", { type: "button", class: p.id === setup.face ? "on" : "", title: passengerName(p.id, lang), "aria-label": passengerName(p.id, lang),
+    onclick: () => { setup.face = p.id; store.set("lt.face", p.id); renderSetup(); } }, h("img", { src: "art/face_" + p.id + ".jpg", alt: "" })));
   $("pCount").textContent = num(setup.n);
   $("pMinus").disabled = setup.n <= E.MIN_PLAYERS;
   $("pPlus").disabled = setup.n >= E.MAX_PLAYERS;
@@ -113,7 +122,7 @@ const game = {
   mode: "solo",       // "solo" | "net"
   st: null,           // solo: the full engine state
   view: null, legal: [], // net: this seat's view and legal actions from the room
-  me: 0, names: [], level: "normal", rng: E.makeRng(E.randomSeed()), botTimer: null, netTimer: null,
+  me: 0, names: [], faces: [], level: "normal", rng: E.makeRng(E.randomSeed()), botTimer: null, netTimer: null,
   log: [], logSeen: 0, flashUntil: 0, auto: false,
   ws: null, code: null, lobby: null, closed: false, clock: null, gen: -1, deadline: 0,
   ui: freshUi(),
@@ -136,8 +145,8 @@ function startGame() {
   game.rng = E.makeRng(E.randomSeed());
   game.st = E.createGame(E.randomSeed(), n, { smuggling: setup.smuggling });
   game.me = 0; game.level = setup.level;
-  const pool = E.shuffle(game.rng, S.names.filter((x) => x !== setup.name));
-  game.names = [setup.name || t("setup.defaultName"), ...pool.slice(0, n - 1)];
+  game.faces = [setup.face, ...freeFaces(game.rng, [setup.face], E.shuffle).slice(0, n - 1)];
+  game.names = soloNames();
   game.log = []; game.logSeen = 0; game.flashUntil = 0; game.ui = freshUi();
   clearTimeout(game.botTimer);
   show("table");
@@ -193,6 +202,7 @@ function botAct(seat) {
   step(a);
 }
 function humanAct(a) {
+  closeSheet();
   if (game.mode === "net") {
     if (!game.view || !game.view.waitingOn.includes(game.me)) return;
     const { seat, why, ...action } = a;
@@ -245,7 +255,7 @@ function connect(params) {
   clearTimeout(game.botTimer);
   game.mode = "net"; game.st = null; game.view = null; game.legal = []; game.lobby = null; game.closed = false;
   game.log = []; game.logSeen = 0; game.names = []; game.me = null; game.gen = -1; game.ui = freshUi();
-  const q = new URLSearchParams({ name: setup.name || t("setup.defaultName"), lang });
+  const q = new URLSearchParams({ name: setup.name || t("setup.defaultName"), lang, face: setup.face });
   if (params.create) q.set("create", "1");
   else { q.set("room", params.code); const tok = sess.get("lt.token." + params.code); if (tok) q.set("token", tok); }
   const ws = game.ws = new WebSocket(wsBase() + "?" + q.toString());
@@ -287,7 +297,7 @@ function onMsg(m) {
     case "view": {
       if (!m.view) { game.view = null; game.legal = []; if (game.lobby) { show("lobby"); renderLobby(); } break; }
       if (m.gen !== game.gen) { game.gen = m.gen; game.log = game.log.filter((l) => l.room); game.logSeen = 0; game.ui = freshUi(); }
-      game.view = m.view; game.legal = m.legal || []; game.names = m.names; game.me = m.me; game.deadline = m.deadline || 0;
+      game.view = m.view; game.legal = m.legal || []; game.names = m.names; game.faces = m.faces || []; game.me = m.me; game.deadline = m.deadline || 0;
       // the engine's public log becomes lines here, in this tab's language
       for (; game.logSeen < m.view.log.length; game.logSeen++) {
         const e = m.view.log[game.logSeen];
@@ -323,7 +333,7 @@ function renderLobbyLog() {
   const box = clear($("lbLog"));
   for (const l of game.log.filter((x) => x.room).slice(-30)) {
     if (l.seat === null) box.append(h("div", {}, l.text));
-    else box.append(h("div", { class: "say" }, h("b", {}, nameOfLobby(l.seat)), h("i", {}, "："), l.text));
+    else box.append(h("div", { class: "say" }, faceEl(l.seat, "xs"), h("span", {}, h("b", {}, nameOfLobby(l.seat)), h("i", {}, "："), l.text)));
   }
   box.scrollTop = box.scrollHeight;
 }
@@ -341,7 +351,7 @@ function renderLobby() {
     else if (!s.connected) tags.push(h("span", { class: "tag off" }, t("lobby.away")));
     else if (s.idx !== 0) tags.push(h("span", { class: "tag" + (s.ready ? " ok" : "") }, s.ready ? t("lobby.ready") : t("lobby.notReady")));
     if (host && s.ai && L.phase === "lobby") tags.push(h("button", { type: "button", class: "tag x", onclick: () => send({ type: "removeBot", idx: s.idx }) }, t("lobby.remove")));
-    box.append(h("div", { class: "li" }, h("span", { class: "no" }, String(s.idx + 1)), h("span", { class: "av" + (s.ai ? " bot" : "") }, [...s.name][0] || "?"),
+    box.append(h("div", { class: "li" }, h("span", { class: "no" }, String(s.idx + 1)), s.face ? h("img", { class: "av face", src: "art/face_" + s.face + ".jpg", alt: "" }) : h("span", { class: "av" + (s.ai ? " bot" : "") }, [...s.name][0] || "?"),
       h("span", { class: "nm" }, s.name, s.idx === game.me ? h("small", { class: "muted" }, ` · ${t("lobby.you")}`) : null), ...tags));
   }
   if (host && L.phase === "lobby" && L.seats.length < E.MAX_PLAYERS) box.append(h("button", { type: "button", class: "li empty", onclick: () => send({ type: "addBot" }) }, t("lobby.addBot")));
@@ -495,43 +505,87 @@ function renderSeats(v, legal) {
   const box = clear($("seats"));
   const targets = seatPickTargets(v, legal);
   const f = v.scuffle;
+  const top = Math.ceil(v.n / 2);
+  const sits = [h("div", { class: "sit" }), h("div", { class: "sit" })];
   for (let s = 0; s < v.n; s++) {
     const sd = v.seats[s];
     const me = s === game.me;
-    const tags = [];
-    if (sd.trade) tags.push(h("span", { class: "tag" }, tradeName(sd.trade) + (sd.tradeUsed ? " ✓" : "")));
-    if (sd.drink) tags.push(icon("drink", 14));
-    if (f) {
-      if (s === f.attacker) tags.push(h("span", { class: "tag atk" }, t("table.swords")));
-      else if (s === f.defender) tags.push(h("span", { class: "tag def" }, t("table.shields")));
-      else if (f.support[s] === "attacker") tags.push(h("span", { class: "tag atk" }, t("table.backA")));
-      else if (f.support[s] === "defender") tags.push(h("span", { class: "tag def" }, t("table.backD")));
-      else if (f.support[s] === "out") tags.push(h("span", { class: "tag" }, t(f.hypnotized === s ? "table.named" : "table.out")));
-    }
-    if (v.phase === "over" && sd.gang) tags.push(h("span", { class: "tag " + (sd.gang === E.TIMEKEEPERS ? "watch" : "seal") }, gangName(sd.gang)));
     const pick = targets.includes(s);
-    const el = h("button", {
-      type: "button",
-      class: "seat" + (me ? " me" : "") + (v.turn === s && v.phase !== "over" && v.phase !== "reveal" ? " turn" : "") + (pick ? " pick" : ""),
-      onclick: pick ? () => onSeatPick(v, legal, s) : null, disabled: !pick,
-    },
-      h("div", { class: "nm" }, h("span", {}, nameOf(s) + (me ? ` (${t("table.you")})` : "")), h("span", {}, t("table.bags", { n: sd.items }))),
-      h("div", { class: "sub" }, ...tags));
-    box.append(el);
+    let faceCls = "", side = null;
+    if (f) {
+      if (s === f.attacker) { faceCls = "atk"; side = h("span", { class: "atk" }, t("table.swords")); }
+      else if (s === f.defender) { faceCls = "def"; side = h("span", { class: "def" }, t("table.shields")); }
+      else if (f.support[s] === "attacker") { faceCls = "atk"; side = h("span", { class: "atk" }, t("table.backA")); }
+      else if (f.support[s] === "defender") { faceCls = "def"; side = h("span", { class: "def" }, t("table.backD")); }
+      else if (f.support[s] === "out") { faceCls = "dim"; side = h("span", {}, t(f.hypnotized === s ? "table.named" : "table.out")); }
+    }
+    const bag = h("span", { class: "bag" }, t("table.bags", { n: sd.items }));
+    if (sd.trade) bag.append(" · " + tradeName(sd.trade) + (sd.tradeUsed ? " ✓" : ""));
+    if (sd.drink) bag.append(icon("drink", 12));
+    const extra = v.phase === "over" && sd.gang ? h("span", { class: "bag " + (sd.gang === E.TIMEKEEPERS ? "watch" : "seal") }, gangName(sd.gang)) : side ? h("span", { class: "bag" }, side) : null;
+    const canSheet = !pick && !!sd.trade;
+    const you = me ? (lang === "en" ? ` (${t("table.you")})` : `（${t("table.you")}）`) : "";
+    const el = h("button", { type: "button",
+      class: "fig" + (me ? " me" : "") + (v.turn === s && v.phase !== "over" && v.phase !== "reveal" ? " turn" : "") + (pick ? " pick" : ""),
+      disabled: !pick && !canSheet,
+      onclick: pick ? () => onSeatPick(v, legal, s) : canSheet ? () => openTradeSheet(sd.trade, s) : null },
+      faceEl(s, faceCls), h("span", { class: "plate" }, nameOf(s) + you), bag, extra);
+    sits[s < top ? 0 : 1].append(el);
   }
+  for (const sit of sits) if (sit.childElementCount) box.append(h("div", { class: "bench" }, h("div", { class: "shade" }), sit));
+}
+
+// ---------- pictures ----------
+function faceEl(seat, cls = "") {
+  const id = game.faces[seat] || game.lobby?.seats?.find((x) => x.idx === seat)?.face;
+  if (id) return h("img", { class: "face " + cls, src: "art/face_" + id + ".jpg", alt: "" });
+  return h("span", { class: "face init " + cls }, [...(nameOf(seat) || "?")][0]);
+}
+const itemImg = (kind, cls = "") => h("img", { class: cls, src: "art/item_" + kind + ".jpg", alt: "" });
+const tradeImg = (tr, cls = "") => h("img", { class: cls, src: "art/trade_" + tr + ".jpg", alt: "" });
+// A luggage card: the picture and its name. Tapping it picks it when a pick is
+// on, otherwise opens its text.
+const pic = (kind, o = {}) => h("button", { type: "button", class: "pic" + (o.cls || ""), disabled: !!o.disabled, onclick: o.onclick || null }, itemImg(kind), h("span", {}, (o.label || "") + itemName(kind)));
+const thumb = (kind, onclick) => h("button", { type: "button", class: "thumbbtn", title: itemName(kind), onclick }, itemImg(kind, "thumb"));
+
+// ---------- the bottom sheet: what a card or a trade does ----------
+function openSheet(...children) { const sh = clear($("sheet")); sh.append(h("div", { class: "grip" }), ...children); sh.hidden = false; $("scrim").hidden = false; }
+function closeSheet() { $("sheet").hidden = true; $("scrim").hidden = true; }
+$("scrim").addEventListener("click", closeSheet);
+function openItemSheet(kind, where = "") {
+  const def = E.ITEM_BY_KIND[kind] || {};
+  openSheet(
+    h("div", { class: "row", style: "gap:14px;align-items:flex-start" }, itemImg(kind, "art"),
+      h("div", { class: "stack", style: "gap:4px;flex:1;min-width:0" },
+        h("div", { class: "row between" }, h("span", { class: "disp ttl" }, itemName(kind)), h("span", { class: "tag" }, t("sheet.inDeck", { n: def.count || 1 }))),
+        h("p", { class: "small" }, t("itemText." + kind)))),
+    h("div", { class: "rule" }),
+    h("div", { class: "row between" }, h("span", { class: "hint" }, where), btn(t("sheet.close"), "ghost sm", closeSheet)));
+}
+function openTradeSheet(tr, seat = null) {
+  const def = E.TRADE_BY_ID[tr] || {};
+  const who = seat === null ? null : seat === game.me ? h("span", { class: "hint" }, t("sheet.yours"))
+    : h("div", { class: "row", style: "gap:8px" }, faceEl(seat, "sm"), h("span", { class: "hint" }, t("sheet.shownBy", { name: nameOf(seat) })));
+  openSheet(
+    h("div", { class: "row", style: "gap:14px;align-items:flex-start" }, tradeImg(tr, "art"),
+      h("div", { class: "stack", style: "gap:4px;flex:1;min-width:0" }, who,
+        h("div", { class: "row between" }, h("span", { class: "disp ttl" }, tradeName(tr)), h("span", { class: "tag" }, t(def.once ? "reveal.once" : "reveal.always"))),
+        h("p", { class: "small" }, t("tradeText." + tr)))),
+    h("div", { class: "rule" }),
+    h("div", { class: "row between" }, h("span", {}), btn(t("sheet.close"), "ghost sm", closeSheet)));
 }
 
 function renderHand(v) {
   const box = clear($("hand"));
   if (v.phase === "reveal" || !v.me) return;
   const mine = v.me.items;
-  box.append(h("span", { class: "lab" }, t("table.yourBag", { n: mine.length, max: v.handLimit })));
+  box.append(h("span", { class: "lab" }, t("table.yourBag", { n: mine.length, max: v.handLimit }) + (handPick || !mine.length ? "" : " · " + t("table.tapHint"))));
   const row = h("div", { class: "hand" });
   for (const it of mine) {
     const pickable = handPick && handPick.ids.has(it.id);
     const sel = game.ui.item === it.id || game.ui.picks.includes(it.id) || game.ui.showItems.has(it.id);
-    row.append(h("button", { type: "button", class: "item" + (pickable ? " pick" : handPick ? " dim" : "") + (sel ? " sel" : ""), disabled: !pickable, title: t("itemText." + it.kind),
-      onclick: pickable ? () => handPick.on(it.id) : null }, icon(it.kind, 22), h("span", {}, itemName(it.kind))));
+    row.append(pic(it.kind, { cls: (pickable ? " pick" : handPick ? " dim" : "") + (sel ? " sel" : ""), disabled: !!handPick && !pickable,
+      onclick: pickable ? () => handPick.on(it.id) : handPick ? null : () => openItemSheet(it.kind, t("sheet.inHand")) }));
   }
   if (!mine.length) row.append(h("span", { class: "hint" }, t("table.empty")));
   box.append(row);
@@ -555,7 +609,7 @@ function renderLog() {
   const box = clear($("log"));
   for (const l of game.log.slice(-60)) {
     if (l.seat === null) box.append(h("div", { class: l.hot ? "hot" : "" }, l.text));
-    else box.append(h("div", { class: "say" }, h("b", {}, nameOf(l.seat)), h("i", {}, "：" ), l.text));
+    else box.append(h("div", { class: "say" }, faceEl(l.seat, "xs"), h("span", {}, h("b", {}, nameOf(l.seat)), h("i", {}, "："), l.text)));
   }
   box.scrollTop = box.scrollHeight;
 }
@@ -567,9 +621,7 @@ function waiting(v) {
   if (!who.length) return null;
   return h("p", { class: "hint" }, who.length === 1 ? t("table.waitingOne", { name: nameOf(who[0]) }) : t("table.waiting", { names: nameList(who) }));
 }
-function itemCard(it, big = false, extra = {}) {
-  return h("div", { class: "item" + (big ? " big" : "") + (extra.class || "") }, icon(it.kind, big ? 30 : 22), h("span", {}, itemName(it.kind)));
-}
+const itemCard = (it, big = false) => pic(it.kind, { cls: big ? " big" : "", onclick: () => openItemSheet(it.kind) });
 function renderPanel(v, legal) {
   const box = clear($("panel"));
   const p = h("div", { class: "panel" });
@@ -652,7 +704,7 @@ function renderPanel(v, legal) {
     const row = h("div", { class: "hand" });
     for (const it of v.peek) {
       const idx = ui.picks.indexOf(it.id);
-      row.append(h("button", { type: "button", class: "item pick" + (idx >= 0 ? " sel" : ""), onclick: () => { if (idx >= 0) ui.picks.splice(idx, 1); else if (ui.picks.length < 2) ui.picks.push(it.id); render(); } }, icon(it.kind, 22), h("span", {}, (idx >= 0 ? `${idx + 1}. ` : "") + itemName(it.kind))));
+      row.append(pic(it.kind, { cls: " pick" + (idx >= 0 ? " sel" : ""), label: idx >= 0 ? `${idx + 1}. ` : "", onclick: () => { if (idx >= 0) ui.picks.splice(idx, 1); else if (ui.picks.length < 2) ui.picks.push(it.id); render(); } }));
     }
     card.append(row, btn(t("table.arrange"), "p", () => humanAct({ type: "arrange", seat: me, top: ui.picks.slice() }), ui.picks.length !== 2));
     p.append(card);
@@ -715,24 +767,33 @@ function renderPanel(v, legal) {
 function scuffleCard(v, legal) {
   const f = v.scuffle, me = game.me, ui = game.ui;
   const card = h("div", { class: "card fight" });
-  const title = f.defender === me ? t("table.attackOnYou", { a: nameOf(f.attacker) }) : f.attacker === me ? t("table.youAttack", { b: nameOf(f.defender) }) : t("table.attackOn", { a: nameOf(f.attacker), b: nameOf(f.defender) });
-  card.append(h("div", { class: "title disp" }, title));
   const counted = ["doctor", "choice", "take"].includes(f.step);
   const tally = (side) => 1 + Object.values(f.support).filter((x) => x === side).length;
-  card.append(h("div", { class: "counts" },
-    h("div", { class: "card", style: "border-color:var(--rust)" }, icon("sword", 24), h("span", { class: "num atk" }, String(counted ? f.swords : tally("attacker"))), h("span", { class: "hint" }, t("table.swords") + " · " + nameOf(f.attacker))),
-    h("div", { class: "card", style: "border-color:var(--steel)" }, icon("shield", 24), h("span", { class: "num def" }, String(counted ? f.shields : tally("defender"))), h("span", { class: "hint" }, t("table.shields") + " · " + nameOf(f.defender)))));
-  const lines = h("div", { class: "lines" });
-  for (const [s, side] of Object.entries(f.support)) lines.append(h("div", {}, h("span", {}, nameOf(Number(s))), h("span", { class: side === "attacker" ? "atk" : side === "defender" ? "def" : "hint" }, t(side === "attacker" ? "table.backA" : side === "defender" ? "table.backD" : f.hypnotized === Number(s) ? "table.named" : "table.out"))));
-  for (const [s, x] of Object.entries(f.shown)) {
-    const what = [...x.items.map(itemName), ...(x.trade ? [tradeName(x.trade)] : [])];
-    if (what.length) lines.append(h("div", {}, h("span", {}, nameOf(Number(s))), h("span", { class: "hint" }, what.join(lang === "en" ? ", " : "、"))));
+  const sw = counted ? f.swords : tally("attacker"), sh = counted ? f.shields : tally("defender");
+  const title = counted && f.tie ? t("table.tie", { name: nameOf(f.attacker) }) : counted && f.winner != null ? t("table.won", { name: nameOf(f.winner) })
+    : f.defender === me ? t("table.attackOnYou", { a: nameOf(f.attacker) }) : f.attacker === me ? t("table.youAttack", { b: nameOf(f.defender) }) : t("table.attackOn", { a: nameOf(f.attacker), b: nameOf(f.defender) });
+  card.append(h("div", { class: "title disp" }, h("span", {}, title), counted ? h("span", { class: "hint nowrap" }, t("log.count", { swords: sw, shields: sh }).replace(/[。.]$/, "")) : null));
+  const side = (s, cls, ic, n) => h("div", { class: "side" }, faceEl(s, "lg " + cls), h("span", { class: "nm" }, nameOf(s)), h("div", { class: "row", style: "gap:6px" }, h("span", { class: cls }, icon(ic, 20)), h("span", { class: "num " + cls }, String(n))));
+  card.append(h("div", { class: "duel" }, side(f.attacker, "atk", "sword", sw), h("span", { class: "vs lat" }, "vs"), side(f.defender, "def", "shield", sh)));
+  const shownOf = (s) => { const x = f.shown[s]; const out = []; if (!x) return out; for (const k of x.items) out.push(thumb(k, () => openItemSheet(k))); if (x.trade) out.push(h("button", { type: "button", class: "thumbbtn", title: tradeName(x.trade), onclick: () => openTradeSheet(x.trade, s) }, tradeImg(x.trade, "thumb"))); return out; };
+  const sup = h("div", { class: "sup" });
+  const started = Object.keys(f.support).length > 0 || Object.keys(f.shown).length > 0;
+  for (let s = 0; s < v.n && started; s++) {
+    if (s === f.attacker || s === f.defender) continue;
+    const st = f.support[s];
+    const cls = st === "attacker" ? "atk" : st === "defender" ? "def" : st === "out" ? "dim" : "";
+    const right = h("div", { class: "row", style: "gap:8px" }, ...shownOf(s));
+    if (st === "attacker") right.append(h("span", { class: "atk" }, t("table.backA")), h("span", { class: "atk" }, icon("sword", 18)));
+    else if (st === "defender") right.append(h("span", { class: "def" }, t("table.backD")), h("span", { class: "def" }, icon("shield", 18)));
+    else if (st === "out") right.append(...(f.hypnotized === s ? [h("span", { class: "tag" }, t("table.named"))] : []), h("span", { class: "hint" }, t("table.out")), h("span", { class: "hint" }, icon("out", 18)));
+    else right.append(h("span", { class: "hint" }, "…"));
+    sup.append(h("div", {}, h("div", { class: "row", style: "gap:8px" }, faceEl(s, "sm " + cls), h("span", {}, nameOf(s))), right));
   }
-  if (lines.childElementCount) card.append(lines);
-  if (counted) {
-    const line = f.tie ? t("table.tie", { name: nameOf(f.attacker) }) : t("table.won", { name: nameOf(f.winner) });
-    card.append(h("p", { class: "small" }, line));
+  for (const s of [f.attacker, f.defender]) {
+    const shown = shownOf(s);
+    if (shown.length) sup.append(h("div", {}, h("div", { class: "row", style: "gap:8px" }, faceEl(s, "sm"), h("span", {}, nameOf(s))), h("div", { class: "row", style: "gap:8px" }, ...shown)));
   }
+  if (sup.childElementCount) card.append(sup);
   const iAct = v.waitingOn.includes(me);
   if (!iAct) { card.append(waiting(v)); return card; }
 
@@ -788,7 +849,7 @@ function scuffleCard(v, legal) {
     case "take": {
       card.append(h("p", {}, t("table.takeWhich")));
       const row = h("div", { class: "hand" });
-      for (const it of f.loserHand) row.append(h("button", { type: "button", class: "item pick", title: t("itemText." + it.kind), onclick: () => humanAct({ type: "takeItem", seat: me, item: it.id }) }, icon(it.kind, 22), h("span", {}, itemName(it.kind))));
+      for (const it of f.loserHand) row.append(pic(it.kind, { cls: " pick", onclick: () => humanAct({ type: "takeItem", seat: me, item: it.id }) }));
       card.append(row);
       break;
     }
@@ -800,16 +861,16 @@ function overCard(v) {
   const wrap = h("div", { class: "stack" });
   const soloWin = typeof v.winner === "number";
   const head = h("div", { class: "card dark ticket over" });
-  if (soloWin) head.append(icon("first_class_ticket", 40), h("div", { class: "disp g" }, t("over.soloWins", { name: nameOf(v.winner) })), h("span", { class: "hint" }, t("over.solo")));
+  if (soloWin) head.append(itemImg("first_class_ticket", "medal"), h("div", { class: "disp g" }, t("over.soloWins", { name: nameOf(v.winner) })), h("span", { class: "hint" }, t("over.solo")));
   else {
     const by = v.event && v.event.by != null ? nameOf(v.event.by) : "";
-    head.append(icon(E.GOAL[v.winner], 40), h("div", { class: "disp g " + (v.winner === E.TIMEKEEPERS ? "watch" : "seal") }, t("over.gangWins", { gang: gangName(v.winner) })), h("span", { class: "hint" }, t(v.reason === "declared" ? "over.declared" : "over.wrong", { name: by })));
+    head.append(h("img", { class: "medal", src: "art/gang_" + E.GOAL[v.winner] + ".jpg", alt: "" }), h("div", { class: "disp g " + (v.winner === E.TIMEKEEPERS ? "watch" : "seal") }, t("over.gangWins", { gang: gangName(v.winner) })), h("span", { class: "hint" }, t(v.reason === "declared" ? "over.declared" : "over.wrong", { name: by })));
   }
   wrap.append(head);
   const table = h("table", {}, h("tr", {}, h("th", {}, t("over.passengers")), h("th", {}, t("over.gangCol")), h("th", {}, t("over.tradeCol")), h("th", {}, t("over.bagsCol"))));
   for (let s = 0; s < v.n; s++) {
     const sd = v.seats[s];
-    table.append(h("tr", {}, h("td", {}, nameOf(s) + (s === game.me ? ` (${t("table.you")})` : "")), h("td", { class: sd.gang === E.TIMEKEEPERS ? "watch" : "seal" }, gangName(sd.gang)), h("td", {}, tradeName(sd.trade)), h("td", { class: "icons" }, h("div", { class: "row" }, ...sd.hand.map((x) => h("span", { title: itemName(x.kind) }, icon(x.kind, 16)))))));
+    table.append(h("tr", {}, h("td", {}, h("div", { class: "row", style: "gap:6px" }, faceEl(s, "xs"), h("span", {}, nameOf(s) + (s === game.me ? ` (${t("table.you")})` : "")))), h("td", { class: sd.gang === E.TIMEKEEPERS ? "watch" : "seal" }, gangName(sd.gang)), h("td", {}, h("button", { type: "button", class: "linkish plain", onclick: () => openTradeSheet(sd.trade, s) }, tradeName(sd.trade))), h("td", { class: "icons" }, h("div", { class: "row" }, ...sd.hand.map((x) => thumb(x.kind, () => openItemSheet(x.kind)))))));
   }
   wrap.append(h("div", { class: "card" }, table));
   if (game.mode === "solo") wrap.append(btn(t("table.again"), "p", () => startGame()));
@@ -825,13 +886,16 @@ function renderOverlay(v) {
   clear(ov);
   const me = v.me, gang = me.gang, other = E.other(gang);
   const tr = E.TRADE_BY_ID[me.trade];
+  const rowCard = (img, ...body) => h("div", { class: "card row", style: "gap:12px;align-items:flex-start" }, img, h("div", { class: "stack", style: "gap:2px;flex:1;min-width:0" }, ...body));
   ov.append(h("main", { class: "scr" },
-    h("p", { class: "hint center" }, t("reveal.only")),
-    h("div", { class: "card dark ticket reveal" }, h("span", { class: "lab" }, t("reveal.yourGang")), icon(E.GOAL[gang], 56), h("div", { class: "disp g " + (gang === E.TIMEKEEPERS ? "watch" : "seal") }, gangName(gang)), h("span", { class: "lat" }, t("gang." + gang + "Lat")),
-      h("p", { class: "small" }, t("reveal.goalText", { goal: t("goal." + gang), other: gangName(other), otherGoal: t("goal." + other) }))),
-    h("div", { class: "card stack" }, h("span", { class: "lab" }, t("reveal.yourTrade")), h("div", { class: "row between" }, h("span", { class: "disp", style: "font-size:26px" }, tradeName(me.trade)), h("span", { class: "tag" }, t(tr.once ? "reveal.once" : "reveal.always"))), h("p", { class: "small" }, t("tradeText." + me.trade))),
-    h("div", { class: "card stack" }, h("span", { class: "lab" }, t("reveal.yourBag")), h("div", { class: "hand" }, ...me.items.map((it) => itemCard(it))), ...me.items.map((it) => h("p", { class: "hint" }, h("b", {}, itemName(it.kind) + ": "), t("itemText." + it.kind))),
-      me.drink ? h("p", { class: "hint" }, t("reveal.drink")) : null),
+    h("div", { class: "row", style: "justify-content:center;gap:12px" }, faceEl(game.me, "me"), h("span", { class: "hint" }, t("reveal.only"))),
+    h("div", { class: "card dark gangcard" }, h("img", { src: "art/gang_" + E.GOAL[gang] + ".jpg", alt: "" }),
+      h("div", { class: "cap" }, h("span", { class: "lab" }, t("reveal.yourGang")), h("div", { class: "disp g " + (gang === E.TIMEKEEPERS ? "watch" : "seal") }, gangName(gang)),
+        h("span", { class: "lat sub2" }, t("gang." + gang + "Lat") + " · " + t("goal." + gang)),
+        h("p", { class: "small" }, t("reveal.goalText", { goal: t("goal." + gang), other: gangName(other), otherGoal: t("goal." + other) })))),
+    rowCard(tradeImg(me.trade, "art sm"), h("span", { class: "lab" }, t("reveal.yourTrade")), h("div", { class: "row between" }, h("span", { class: "disp", style: "font-size:22px" }, tradeName(me.trade)), h("span", { class: "tag" }, t(tr.once ? "reveal.once" : "reveal.always"))), h("p", { class: "small" }, t("tradeText." + me.trade))),
+    ...me.items.map((it, i) => rowCard(itemImg(it.kind, "art sm"), i === 0 ? h("span", { class: "lab" }, t("reveal.yourBag")) : null, h("span", { class: "disp", style: "font-size:20px" }, itemName(it.kind)), h("p", { class: "small" }, t("itemText." + it.kind)))),
+    me.drink ? h("p", { class: "hint" }, t("reveal.drink")) : null,
     h("div", { class: "spacer" }),
     btn(t("reveal.ready"), "p", () => humanAct({ type: "ready", seat: game.me }))));
 }
@@ -840,7 +904,7 @@ const kindOf = (v, id) => (v.me.items.find((x) => x.id === id) || {}).kind || id
 
 // ---------- routing ----------
 const views = ["landing", "setup", "lobby", "table"];
-function show(name) { for (const v of views) $("view-" + v).hidden = v !== name; if (name !== "table") $("overlay").hidden = true; }
+function show(name) { closeSheet(); for (const v of views) $("view-" + v).hidden = v !== name; if (name !== "table") $("overlay").hidden = true; }
 function go(q) { history.pushState(null, "", location.pathname + q); route(); }
 function route() {
   const q = new URLSearchParams(location.search);

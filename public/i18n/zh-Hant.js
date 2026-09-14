@@ -15,9 +15,9 @@ export default {
     title: "單人上車", sub: "你和 {bots} 位 AI 乘客。", players: "同車人數（含你）", level: "AI 難度", name: "你的名字",
     easy: "易", normal: "中", hard: "難", smuggling: "走私", smugglingHint: "換出去的物件效果，由給的人決定要不要唸出來。",
     hint: "雙數人數最均衡；單數時人少的一方每人多一杯烈酒。三人局請先讀規則。",
-    start: "開車", defaultName: "你",
+    start: "開車", defaultName: "你", face: "你的長相", faceHint: "二十張臉任選；其餘乘客由 AI 扮演，不會和你撞臉。",
   },
-  gang: { timekeepers: "守時會", sealbearers: "掌印社", timekeepersLat: "the Timekeepers", sealbearersLat: "the Sealbearers" },
+  gang: { timekeepers: "鐘樓會", sealbearers: "印信社", timekeepersLat: "the Clocktower Society", sealbearersLat: "the Seal Society" },
   goal: { timekeepers: "三只懷錶", sealbearers: "三枚玉印" },
   reveal: {
     only: "只有你看得到這一頁", yourGang: "你的幫會", yourTrade: "你的行當", yourBag: "你的行李",
@@ -48,7 +48,7 @@ export default {
     black_letter: "黑函", broken_mirror: "破鏡", first_class_ticket: "頭等票",
   },
   itemText: {
-    watch: "守時會集齊三只就贏。", seal: "掌印社集齊三枚就贏。",
+    watch: "鐘樓會集齊三只就贏。", seal: "印信社集齊三枚就贏。",
     case_watch: "換出去時，從牌堆抽一件。不能和另一只皮箱互換。牌堆空了，它就是一只懷錶。",
     case_seal: "換出去時，從牌堆抽一件。不能和另一只皮箱互換。牌堆空了，它就是一枚玉印。",
     dagger: "身為攻方，攻 +1。", gloves: "身為守方，守 +1。", poison_ring: "身為攻方或守方，平手算你贏。",
@@ -87,6 +87,7 @@ export default {
     declareMine: "你有 {n} 件", declareWho: "其餘的在誰手上？", declareNeed: "還差 {n} 件", declareDrink: "（烈酒可頂一件，若你們人少）",
     declareGo: "就是他們，攤牌", declareNone: "你手上得先有一件自己的。", declareBlocked: "持有黑函不能攤牌。",
     solo: "亮出頭等票，獨自下車", again: "再搭一班", lobby: "回月台", continue: "繼續",
+    tapHint: "點一下看說明",
     knowledge: "你知道的", known: { gang: "{name} 是{gang}", trade: "{name} 是{trade}", hand: "{name} 的行李：{items}" },
   },
   over: {
@@ -124,7 +125,7 @@ export default {
     joined: "{name} 上車了。", left: "{name} 下車了。", leftGame: "{name} 中途下車，座位交給 AI。",
     timeout: "{name} 沒有反應，由車廂代為決定。", over: "{gang} 勝。", overSolo: "{name} 獨自下車。",
   },
-  names: ["周太太", "王秘書", "陳老闆", "林小姐", "阿彪", "小四", "何先生", "老金", "阿毛", "白老師"],
+  sheet: { inDeck: "全車 {n} 件", inHand: "在你手上", close: "關閉", shownBy: "{name} 亮出的行當", yours: "你的行當" },
   nums: ["一", "二", "三", "四", "五", "六", "七", "八", "九", "十"],
   talk: {
     offer: ["{to}，這件你收著。", "跟你換個東西，{to}。", "{to}，看看這個。"],

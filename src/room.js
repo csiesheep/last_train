@@ -12,6 +12,7 @@ import * as B from "../public/shared/bots.js";
 import { sayAction, sayResult } from "../public/shared/talk.js";
 import en from "../public/i18n/en.js";
 import zh from "../public/i18n/zh-Hant.js";
+import { isFace, passengerName, freeFaces } from "../public/shared/passengers.js";
 
 const LANGS = { en, "zh-Hant": zh };
 // How long a step waits for a human before the table decides for them.
@@ -60,6 +61,7 @@ export class Room {
     return String(v ?? key).replace(/\{(\w+)\}/g, (_, k) => (p[k] ?? ""));
   }
   names() { return this.room.seats.map((s) => s.name); }
+  faces() { return this.room.seats.map((s) => s.face); }
   talkCtx(rng) { return { rng, names: this.names(), T: this.S.talk }; }
 
   // ---------- sockets ----------
@@ -78,7 +80,7 @@ export class Room {
     const r = this.room;
     return {
       type: "lobby", code: r.code, phase: r.phase, settings: r.settings,
-      seats: r.seats.map((s) => ({ idx: s.idx, name: s.name, ready: s.ready, connected: s.ai || this.connected(s), ai: s.ai })),
+      seats: r.seats.map((s) => ({ idx: s.idx, name: s.name, face: s.face, ready: s.ready, connected: s.ai || this.connected(s), ai: s.ai })),
     };
   }
   pushLobby() { this.broadcast(this.lobbyMsg()); }
@@ -87,7 +89,7 @@ export class Room {
     const idx = seat ? seat.idx : null;
     return {
       type: "view", view: E.view(r.state, idx), legal: idx === null ? [] : E.legalActions(r.state, idx),
-      me: idx, names: this.names(), deadline: r.deadline, gen: r.gen,
+      me: idx, names: this.names(), faces: this.faces(), deadline: r.deadline, gen: r.gen,
     };
   }
   pushViews() {
@@ -134,6 +136,7 @@ export class Room {
     const tok = url.searchParams.get("token");
     const create = url.searchParams.get("create") === "1";
     const lang = LANGS[url.searchParams.get("lang")] ? url.searchParams.get("lang") : "en";
+    const face = url.searchParams.get("face") || "";
     const pair = new WebSocketPair();
     const [client, server] = Object.values(pair);
 
@@ -152,7 +155,7 @@ export class Room {
         state: null, rngState: E.randomSeed(), gen: 0, deadline: 0, stepKey: "",
         log: [], alarmAt: 0, idle: false, lastActive: Date.now(),
       };
-      seat = this.addSeat(name || this.t("setup.defaultName"));
+      seat = this.addSeat(name || this.t("setup.defaultName"), face);
     } else if (tok && (seat = room.seats.find((s) => s.token === tok && !s.ai))) {
       for (const old of this.sockets(tok)) { try { old.close(1000, "replaced"); } catch {} }
     } else if (room.phase !== "lobby") {
@@ -160,7 +163,7 @@ export class Room {
     } else if (room.seats.length >= MAX_SEATS) {
       return reject("full");
     } else {
-      seat = this.addSeat(name || this.t("setup.defaultName"));
+      seat = this.addSeat(name || this.t("setup.defaultName"), face);
       this.say(null, this.t("sys.joined", { name: seat.name }));
     }
 
@@ -176,21 +179,29 @@ export class Room {
     return new Response(null, { status: 101, webSocket: client });
   }
 
-  addSeat(name) {
-    const r = this.room;
-    const taken = new Set(r.seats.map((s) => s.name));
+  // The face a newcomer asked for if nobody has it, else a free one.
+  pickFace(wanted) {
+    const taken = this.room.seats.map((s) => s.face);
+    if (isFace(wanted) && !taken.includes(wanted)) return wanted;
+    return this.withRng((rng) => freeFaces(rng, taken, E.shuffle))[0] || null;
+  }
+  uniqueName(name) {
+    const taken = new Set(this.room.seats.map((s) => s.name));
     let n = name;
     for (let i = 2; taken.has(n); i++) n = `${name} ${i}`;
-    const seat = { idx: r.seats.length, name: n, token: newToken(), ready: false, ai: false, lastSeen: Date.now() };
+    return n;
+  }
+  addSeat(name, face = "") {
+    const r = this.room;
+    const seat = { idx: r.seats.length, name: this.uniqueName(name), face: this.pickFace(face), token: newToken(), ready: false, ai: false, lastSeen: Date.now() };
     r.seats.push(seat);
     return seat;
   }
   addBot() {
     const r = this.room;
-    const taken = new Set(r.seats.map((s) => s.name));
-    const pool = this.withRng((rng) => E.shuffle(rng, this.S.names)).filter((n) => !taken.has(n));
-    const name = pool[0] || `Bot ${r.seats.length + 1}`;
-    r.seats.push({ idx: r.seats.length, name, token: `ai-${newToken()}`, ready: true, ai: true, lastSeen: 0 });
+    const face = this.pickFace("");
+    const name = this.uniqueName(face ? passengerName(face, r.settings.lang) : `Bot ${r.seats.length + 1}`);
+    r.seats.push({ idx: r.seats.length, name, face, token: `ai-${newToken()}`, ready: true, ai: true, lastSeen: 0 });
   }
   reindex() { this.room.seats.forEach((s, i) => { s.idx = i; }); }
 

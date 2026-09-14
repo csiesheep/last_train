@@ -15,9 +15,9 @@ export default {
     title: "Board solo", sub: "You and {bots} AI passengers.", players: "Passengers, you included", level: "AI level", name: "Your name",
     easy: "Easy", normal: "Normal", hard: "Hard", smuggling: "Smuggling", smugglingHint: "A traded card's text fires only if the giver reads it out.",
     hint: "Even counts are the most balanced; at odd counts the smaller gang gets a strong drink each. Read the rules before a three-player game.",
-    start: "Depart", defaultName: "You",
+    start: "Depart", defaultName: "You", face: "Your face", faceHint: "Pick any of the twenty; the AI passengers take the others.",
   },
-  gang: { timekeepers: "the Timekeepers", sealbearers: "the Sealbearers", timekeepersLat: "守時會", sealbearersLat: "掌印社" },
+  gang: { timekeepers: "the Clocktower Society", sealbearers: "the Seal Society", timekeepersLat: "鐘樓會", sealbearersLat: "印信社" },
   goal: { timekeepers: "three pocket watches", sealbearers: "three jade seals" },
   reveal: {
     only: "Only you can see this", yourGang: "Your gang", yourTrade: "Your trade", yourBag: "Your luggage",
@@ -48,7 +48,7 @@ export default {
     black_letter: "poison-pen letter", broken_mirror: "broken mirror", first_class_ticket: "first-class ticket",
   },
   itemText: {
-    watch: "The Timekeepers win with three.", seal: "The Sealbearers win with three.",
+    watch: "The Clocktower Society win with three.", seal: "The Seal Society win with three.",
     case_watch: "When you trade it on, draw one card from the pile. Never traded for the other suitcase. Once the pile is empty it counts as a pocket watch.",
     case_seal: "When you trade it on, draw one card from the pile. Never traded for the other suitcase. Once the pile is empty it counts as a jade seal.",
     dagger: "As attacker, +1.", gloves: "As defender, +1.", poison_ring: "As attacker or defender, you win ties.",
@@ -87,6 +87,7 @@ export default {
     declareMine: "You hold {n}", declareWho: "Who holds the rest?", declareNeed: "{n} more needed", declareDrink: "(a strong drink covers one, if your gang is the smaller)",
     declareGo: "Those are the ones. Show it", declareNone: "You need one of your own gang's items first.", declareBlocked: "The poison-pen letter's holder may not show their hand.",
     solo: "Show the first-class ticket and leave alone", again: "Board again", lobby: "Back to the platform", continue: "Continue",
+    tapHint: "tap one for its text",
     knowledge: "What you know", known: { gang: "{name} is with {gang}", trade: "{name} is the {trade}", hand: "{name}'s bags: {items}" },
   },
   over: {
@@ -124,7 +125,7 @@ export default {
     joined: "{name} boarded.", left: "{name} got off.", leftGame: "{name} left mid-journey; an AI takes the seat.",
     timeout: "{name} did not answer; the carriage decided for them.", over: "{gang} win.", overSolo: "{name} leaves alone.",
   },
-  names: ["Mrs. Zhou", "Secretary Wang", "Boss Chen", "Miss Lin", "Ah Biao", "Xiao Si", "Mr. He", "Old Jin", "Ah Mao", "Teacher Bai"],
+  sheet: { inDeck: "{n} on the whole train", inHand: "in your bag", close: "Close", shownBy: "{name}'s revealed trade", yours: "your trade" },
   nums: null,
   talk: {
     offer: ["{to}, keep this one.", "A little trade, {to}?", "{to}, have a look at this."],
