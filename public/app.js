@@ -179,6 +179,7 @@ function tick() {
   render();
   const st = game.st;
   if (!st || st.phase === "over") return;
+  if (game.result) return; // the carriage holds until the result is read
   const who = E.mustAct(st);
   if (!who.length) return;
   if (who.includes(game.me) && !game.auto) {
@@ -464,9 +465,18 @@ function describeParts(e, L, parts) {
 
 // ---------- rendering ----------
 let handPick = null; // { ids: Set, on: (id) => void, dim: bool }
+// While a result waits to be confirmed, the table is drawn as the scuffle ended:
+// glows, sides and the count stay put, and nothing else is offered.
+function frozen(v, e) {
+  const counted = e.swords != null;
+  return { ...v, phase: "scuffle", scuffle: { step: counted ? "take" : "priest", attacker: e.attacker, defender: e.defender, support: e.support || {}, shown: e.shown || {},
+    swords: e.swords, shields: e.shields, winner: e.winner, tie: !!e.tie, hypnotized: null, next: null } };
+}
 function render() {
-  const v = curView();
-  if (!v) return;
+  const live = curView();
+  if (!live) return;
+  if (game.result && live.phase === "over") game.result = null;
+  const v = game.result ? frozen(live, game.result) : live;
   const legal = curLegal();
   handPick = null;
   $("chatRow").hidden = game.mode !== "net";
@@ -795,7 +805,7 @@ function renderPanel(v, legal) {
   const ui = game.ui;
   const me = game.me;
   const mineOnTurn = v.phase === "turn" && v.turn === me;
-  if (game.result && !(v.phase === "scuffle" && v.scuffle)) p.append(resultCard(v, game.result));
+  if (game.result) { p.append(resultCard(v, game.result)); return; }
 
   if (v.phase === "over") return p.append(overCard(v));
 
@@ -1027,7 +1037,7 @@ function resultCard(v, e) {
   const count = e.stopped == null && e.doctored == null ? h("span", { class: "hint nowrap" }, t("log.count", { swords: e.swords, shields: e.shields }).replace(/[。.]$/, "")) : null;
   card.append(h("div", { class: "title disp" }, h("span", {}, title), count));
   for (const l of lines) card.append(h("p", { class: "small" }, l));
-  card.append(btn(t("table.gotIt"), "p", () => { game.result = null; render(); }));
+  card.append(btn(t("table.gotIt"), "p", () => { game.result = null; if (game.mode === "solo") tick(); else { render(); netAuto(); } }));
   return card;
 }
 
