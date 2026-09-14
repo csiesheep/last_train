@@ -5,8 +5,7 @@ export default {
   title: "The Last Night Train",
   titleLat: "末班夜車",
   stamp: "23:40 · THIRD-CLASS SLEEPER",
-  tagline: "The last train out, and everyone aboard has something to hide.
-Trade, scuffle, show your hand.",
+  tagline: "The last train out, and everyone aboard has something to hide.\nTrade, scuffle, show your hand.",
   meta: "3–10 players · about 30 minutes · works on a phone",
   credit: "A free fan project, unofficial, nothing to install. The play is inspired by Die Kutschfahrt zur Teufelsburg, a card game designed by Michael Palm and Lukas Zach; the name, setting, art and words here are our own.",
   nav: { back: "Back", rules: "Rules", hub: "More games", lang: "中文", solo: "solo" },
