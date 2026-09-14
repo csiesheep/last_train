@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>怎麼玩 · 末班夜車 The Last Night Train rules</title>
+<meta name="description" content="How to play The Last Night Train 末班夜車: two hidden gangs, trades, scuffles, and showing your hand.">
+<link rel="canonical" href="https://games.csiesheep.com/last_train/rules">
+<meta name="theme-color" content="#0e121b">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@700&family=Noto+Sans+TC:wght@400;500;700&family=Cormorant+Garamond:ital,wght@0,500;1,500&display=swap">
+<link rel="stylesheet" href="style.css">
+<style>
+  .rules h2 { font-size: 24px; margin: 18px 0 6px; }
+  .rules h3 { font-size: 16px; margin: 14px 0 4px; color: var(--brass-hi); letter-spacing: 0.08em; }
+  .rules p, .rules li { font-size: 14px; }
+  .rules ul { margin: 0; padding-left: 18px; }
+  .rules table { font-size: 13px; }
+  .rules th, .rules td { text-align: center; }
+  .rules td:first-child, .rules th:first-child { text-align: left; }
+  .rules dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font-size: 13px; }
+  .rules dt { color: var(--bone); font-weight: 500; white-space: nowrap; }
+  .rules dd { margin: 0; color: var(--grey); }
+</style>
+</head>
+<body>
+<header class="top">
+  <a href="." class="brand disp"><span class="zh">末班夜車</span><span class="en">The Last Night Train</span></a>
+  <nav><a href="."><span class="zh">回月台</span><span class="en">Back</span></a><button type="button" id="langBtn" class="linkish"><span class="zh">EN</span><span class="en">中文</span></button></nav>
+</header>
+
+<main class="scr rules zh" lang="zh-Hant">
+  <h1 class="disp h2">怎麼玩</h1>
+  <p>一班夜車，三到十位乘客。每人暗中屬於<b class="watch">守時會</b>或<b class="seal">掌印社</b>，有一個<b>行當</b>（一項特技）和一件<b>行李</b>。守時會要集齊三只懷錶，掌印社要三枚玉印，而且攤牌時得說得出東西在哪個同伴手上。說對，全會贏；說錯，對面贏。</p>
+
+  <h2 class="disp">開車前</h2>
+  <ul>
+    <li>幫會牌對半分。單數人數時多發一張、抽掉一張，所以有一邊會多一人，沒人知道是哪邊。人少的一邊每人有一杯<b>烈酒</b>，攤牌時可當一件（一次只算一杯）。</li>
+    <li>每人一個行當，蓋著。剩下的行當放一旁，風衣可以去換。</li>
+    <li>行李共 21 件：懷錶 3、玉印 3、皮箱 2，其餘各 1。兩只皮箱一定發出去，加上人數減二件其他行李，洗勻後每人一件；剩下的是牌堆。三人局每人兩件。</li>
+    <li>三人局沒有黑函，十人局沒有風衣。</li>
+  </ul>
+  <table>
+    <tr><th>人數</th><th>3</th><th>4</th><th>5</th><th>6</th><th>7</th><th>8</th><th>9</th><th>10</th></tr>
+    <tr><td>行李上限</td><td>8</td><td>6</td><td>5</td><td>5</td><td>5</td><td>5</td><td>5</td><td>5</td></tr>
+    <tr><td>烈酒</td><td>有</td><td>—</td><td>有</td><td>—</td><td>有</td><td>—</td><td>有</td><td>—</td></tr>
+  </table>
+  <p class="hint">行李超過上限時，要立刻送一件給別人，送到合乎上限為止。</p>
+
+  <h2 class="disp">輪到你，四選一</h2>
+  <h3>過</h3><p>什麼都不做。</p>
+  <h3>交換</h3>
+  <p>暗中遞一件行李給任何一人。對方看過後，收下並回你一件，或拒絕。別人看不到換了什麼。換出去的行李如果印著「換出去時……」，效果就發動，並且會唸出來讓全車知道（走私變體除外）。黑函和破鏡不能拒收。皮箱不能和另一只皮箱互換。</p>
+  <h3>動手</h3>
+  <ol>
+    <li>點名一人。神父此時可以攔下。</li>
+    <li>攻方或守方若是槍手，可以宣告誰都不准幫。</li>
+    <li>從攻方左手邊起，其他人依序表態：<b class="atk">幫攻</b>、<b class="def">幫守</b>或<b>旁觀</b>。</li>
+    <li>攻方若是催眠師，點名一人旁觀，那人這場也不能用行當和行李。</li>
+    <li>大家同時亮出有用的行李與行當：匕首、皮手套、毒戒、飛刀、手杖；打手、武師、保鏢；藥劑師此時判定誰贏。</li>
+    <li>算：攻方一票加幫攻的人數加加成，守方同理。多的贏。平手時毒戒的一方贏，否則攻方從牌堆抽一件。</li>
+    <li>醫生此時可以取消結果。</li>
+    <li>贏家二選一：<b>看</b>輸家的幫會與行當，或<b>翻</b>輸家全部行李拿走一件。</li>
+  </ol>
+  <h3>攤牌</h3>
+  <p>你手上要有至少一件自己幫會的目標物。說出你的幫會，攤開自己的一切，點名持有其餘目標物的同伴和各幾件。被點名的人攤開幫會與行李。全對，你們全會獲勝，沒被點名的同伴也算。錯一項，對面獲勝。持有黑函的人不能攤牌。</p>
+  <p>持有<b>頭等票</b>且自己手上有任意三件懷錶或玉印，可以直接獨自下車，不必點名任何人。烈酒不算。</p>
+  <p>牌堆空了之後，皮箱就是它印著的那件目標物。</p>
+
+  <h2 class="disp">十種行當</h2>
+  <dl>
+    <dt>外交官</dt><dd>一局一次：輪到你時，點名一人和一種物件，對方有就必須和你交換。沒有的話，讓你看他的行李，你的回合結束。</dd>
+    <dt>醫生</dt><dd>一局一次：衝突剛分出勝負時，取消結果。</dd>
+    <dt>槍手</dt><dd>一局一次：身為攻方或守方，宣告誰都不准幫。</dd>
+    <dt>藥劑師</dt><dd>一局一次：一場你沒參與的衝突，由你決定誰贏。</dd>
+    <dt>武師</dt><dd>身為守方，守 +1。</dd>
+    <dt>算命師</dt><dd>一局一次：輪到你時，看整疊牌堆，挑兩張依序放最上面。不佔用你的行動。</dd>
+    <dt>催眠師</dt><dd>身為攻方，大家表態後點名一人旁觀。</dd>
+    <dt>保鏢</dt><dd>你幫誰，誰就 +1。</dd>
+    <dt>神父</dt><dd>一局一次：大家表態前攔下一場衝突。攻方若有兩件以上行李，要賠你一件。</dd>
+    <dt>打手</dt><dd>身為攻方，攻 +1。</dd>
+  </dl>
+  <p class="hint">一局一次的行當用過就翻開放著。密碼本和風衣會讓它蓋回去、能力回來。</p>
+
+  <h2 class="disp">行李</h2>
+  <dl>
+    <dt>懷錶 ×3</dt><dd>守時會的目標。</dd>
+    <dt>玉印 ×3</dt><dd>掌印社的目標。</dd>
+    <dt>皮箱 ×2</dt><dd>換出去時從牌堆抽一件。牌堆空了，它就是一只懷錶或一枚玉印。</dd>
+    <dt>匕首 / 皮手套</dt><dd>攻方 +1 / 守方 +1。</dd>
+    <dt>毒戒</dt><dd>攻方或守方，平手算你贏。</dd>
+    <dt>飛刀 / 手杖</dt><dd>幫攻時攻方 +1 / 幫守時守方 +1。</dd>
+    <dt>密碼本</dt><dd>換出去時，可和對方互換行當。</dd>
+    <dt>風衣</dt><dd>換出去時，可從剩下的行當挑一個新的。</dd>
+    <dt>搜查令</dt><dd>換出去時，看對方全部行李。</dd>
+    <dt>單片鏡</dt><dd>換出去時，看對方的幫會牌。</dd>
+    <dt>時刻表</dt><dd>換出去時，指一個方向，所有人同時把一件行李傳給那邊的鄰座。</dd>
+    <dt>黑函</dt><dd>不能拒收。持有者不能攤牌。</dd>
+    <dt>破鏡</dt><dd>不能拒收。換回來的那件不觸發效果。</dd>
+    <dt>頭等票</dt><dd>加任意三件懷錶或玉印，獨自下車。</dd>
+  </dl>
+
+  <h2 class="disp">變體</h2>
+  <p><b>走私</b>：換出去的行李效果，由給的人決定要不要唸出來；不唸就不發動，也沒人知道換了什麼。</p>
+
+  <p class="foot">同人作品，非官方。玩法啟發自 Michael Palm 與 Lukas Zach 設計的《Die Kutschfahrt zur Teufelsburg》；名稱、設定、美術與文字皆為本站原創。</p>
+</main>
+
+<main class="scr rules en" lang="en">
+  <h1 class="disp h2">How to play</h1>
+  <p>One night train, three to ten passengers. Everyone secretly belongs to <b class="watch">the Timekeepers</b> or <b class="seal">the Sealbearers</b>, has a <b>trade</b> with one trick to it, and a piece of <b>luggage</b>. The Timekeepers need three pocket watches, the Sealbearers three jade seals, and when you show your hand you must say whose bags the rest are in. Right, and your whole gang wins. Wrong, and the other gang does.</p>
+
+  <h2 class="disp">Before departure</h2>
+  <ul>
+    <li>Gang cards come in equal halves. At odd counts one extra card is shuffled in and one is left out unseen, so one gang is a member bigger and nobody knows which. Each member of the smaller gang holds a <b>strong drink</b> that counts as one item when showing a hand (one drink per claim).</li>
+    <li>One trade each, face down. The rest stay aside; the trench coat can fetch one.</li>
+    <li>Twenty-one pieces of luggage: 3 watches, 3 seals, 2 suitcases, one of everything else. Both suitcases are always dealt, along with two fewer other items than there are passengers; shuffled, one each. The rest is the pile. Two each at three players.</li>
+    <li>No poison-pen letter at three players, no trench coat at ten.</li>
+  </ul>
+  <table>
+    <tr><th>Passengers</th><th>3</th><th>4</th><th>5</th><th>6</th><th>7</th><th>8</th><th>9</th><th>10</th></tr>
+    <tr><td>Bag limit</td><td>8</td><td>6</td><td>5</td><td>5</td><td>5</td><td>5</td><td>5</td><td>5</td></tr>
+    <tr><td>Strong drink</td><td>yes</td><td>—</td><td>yes</td><td>—</td><td>yes</td><td>—</td><td>yes</td><td>—</td></tr>
+  </table>
+  <p class="hint">Over the limit, you give bags away at once until you are within it.</p>
+
+  <h2 class="disp">On your turn, one of four</h2>
+  <h3>Pass</h3><p>Do nothing.</p>
+  <h3>Trade</h3>
+  <p>Hand one bag, face down, to anyone. They look at it and either keep it and hand one back, or refuse. Nobody else sees what moved. If the bag you gave away says "when you trade it on…", that fires, and it is read out to the carriage (unless smuggling is on). The poison-pen letter and the broken mirror cannot be refused. A suitcase is never traded for the other suitcase.</p>
+  <h3>Scuffle</h3>
+  <ol>
+    <li>Name someone. The Priest may stop it here.</li>
+    <li>If the attacker or defender is the Gunman, they may bar all support.</li>
+    <li>From the attacker's left, everyone else declares: <b class="atk">back the attacker</b>, <b class="def">back the defender</b>, or <b>stay out</b>.</li>
+    <li>If the attacker is the Hypnotist, they name one passenger who sits out and may use nothing this scuffle.</li>
+    <li>Everyone shows what applies at once: dagger, gloves, poison ring, knives, cane; Thug, Master, Bodyguard; the Pharmacist rules now.</li>
+    <li>Count: one for the attacker plus backers plus bonuses, likewise the defender. More wins. A tie goes to the poison ring's side, else the attacker draws from the pile.</li>
+    <li>The Doctor may cancel the outcome here.</li>
+    <li>The winner picks one: <b>see</b> the loser's gang and trade, or <b>look through</b> the loser's bags and take one.</li>
+  </ol>
+  <h3>Show your hand</h3>
+  <p>You need at least one of your gang's items yourself. Name your gang, reveal everything of yours, and name the allies who hold the rest and how many each. They reveal gang and bags. All right, and every member of your gang wins, named or not. Anything wrong, and the other gang wins. The poison-pen letter's holder may not show their hand.</p>
+  <p>With the <b>first-class ticket</b> and any three watches or seals in your own bag you may leave the train alone, naming nobody. The drink does not count.</p>
+  <p>Once the pile is empty, a suitcase is the item printed on it.</p>
+
+  <h2 class="disp">The ten trades</h2>
+  <dl>
+    <dt>Diplomat</dt><dd>Once a game, on your turn: name a passenger and a kind of item. If they have it they must trade it to you; if not, they show you their bags and your turn ends.</dd>
+    <dt>Doctor</dt><dd>Once a game: cancel a scuffle's outcome the moment it is decided.</dd>
+    <dt>Gunman</dt><dd>Once a game, as attacker or defender: nobody may back either side.</dd>
+    <dt>Pharmacist</dt><dd>Once a game: decide a scuffle you are not part of.</dd>
+    <dt>Master</dt><dd>As defender, +1.</dd>
+    <dt>Fortune Teller</dt><dd>Once a game, on your turn: look through the pile and put two cards on top in your order. Does not use your action.</dd>
+    <dt>Hypnotist</dt><dd>As attacker, after everyone declared, name one passenger who sits out.</dd>
+    <dt>Bodyguard</dt><dd>Whoever you back gets +1.</dd>
+    <dt>Priest</dt><dd>Once a game, before anyone declares: stop a scuffle. If the attacker holds two or more bags, they give you one.</dd>
+    <dt>Thug</dt><dd>As attacker, +1.</dd>
+  </dl>
+  <p class="hint">A once-a-game trade stays face up after use. The codebook and the trench coat turn it back down and restore it.</p>
+
+  <h2 class="disp">Luggage</h2>
+  <dl>
+    <dt>Pocket watch ×3</dt><dd>The Timekeepers' goal.</dd>
+    <dt>Jade seal ×3</dt><dd>The Sealbearers' goal.</dd>
+    <dt>Suitcase ×2</dt><dd>When traded on, draw one from the pile. Once the pile is empty it is a watch or a seal.</dd>
+    <dt>Dagger / gloves</dt><dd>Attacker +1 / defender +1.</dd>
+    <dt>Poison ring</dt><dd>Attacker or defender: ties go to you.</dd>
+    <dt>Knives / cane</dt><dd>Backing the attacker, +1 / backing the defender, +1.</dd>
+    <dt>Codebook</dt><dd>When traded on, you may swap trades with your partner.</dd>
+    <dt>Trench coat</dt><dd>When traded on, you may take a new trade from the spare ones.</dd>
+    <dt>Search warrant</dt><dd>When traded on, see all of your partner's bags.</dd>
+    <dt>Monocle</dt><dd>When traded on, see your partner's gang card.</dd>
+    <dt>Timetable</dt><dd>When traded on, name a direction; everyone passes one bag that way at once.</dd>
+    <dt>Poison-pen letter</dt><dd>Cannot be refused. Its holder may not show their hand.</dd>
+    <dt>Broken mirror</dt><dd>Cannot be refused. The card you get for it has no effect.</dd>
+    <dt>First-class ticket</dt><dd>With any three watches or seals, leave alone.</dd>
+  </dl>
+
+  <h2 class="disp">Variant</h2>
+  <p><b>Smuggling</b>: a traded card's text fires only if the giver reads it out; otherwise it changes hands silently.</p>
+
+  <p class="foot">A free fan project, unofficial. The play is inspired by Die Kutschfahrt zur Teufelsburg, a card game designed by Michael Palm and Lukas Zach; the name, setting, art and words here are our own.</p>
+</main>
+
+<script>
+  const q = new URLSearchParams(location.search);
+  let lang = q.get("lang") || (function () { try { return localStorage.getItem("lt.lang"); } catch { return null; } })() || (navigator.language.startsWith("zh") ? "zh-Hant" : "en");
+  function paint() {
+    document.documentElement.lang = lang;
+    document.querySelectorAll(".zh").forEach((el) => { el.style.display = lang === "zh-Hant" ? "" : "none"; });
+    document.querySelectorAll(".en").forEach((el) => { el.style.display = lang === "en" ? "" : "none"; });
+  }
+  document.getElementById("langBtn").addEventListener("click", () => { lang = lang === "en" ? "zh-Hant" : "en"; try { localStorage.setItem("lt.lang", lang); } catch {} paint(); });
+  paint();
+</script>
+</body>
+</html>

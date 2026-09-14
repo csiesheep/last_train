@@ -5,47 +5,81 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex">
 <title>末班夜車 The Last Night Train</title>
-<meta name="description" content="末班夜車 The Last Night Train: a hidden-gang card game for 3 to 10 passengers, in the browser. Under construction.">
+<meta name="description" content="末班夜車 The Last Night Train: a hidden-gang card game for 3 to 10 passengers, in the browser. Solo against AI passengers; online compartments coming.">
 <link rel="canonical" href="https://games.csiesheep.com/last_train/">
 <meta name="theme-color" content="#0e121b">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@700&family=Noto+Sans+TC:wght@400;500;700&family=Cormorant+Garamond:ital,wght@0,500;1,500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@700&family=Noto+Sans+TC:wght@400;500;700&family=Cormorant+Garamond:ital,wght@0,500;0,700;1,500&display=swap">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<main class="landing">
-  <section class="ticket">
-    <p class="stamp">23:40 · 三等臥鋪</p>
-    <h1 class="disp" data-t="title"></h1>
-    <p class="lat" data-t="titleZh"></p>
+
+<header class="top">
+  <a href="." data-link class="brand disp" data-t="title"></a>
+  <nav>
+    <a href="rules" data-t="nav.rules"></a>
+    <button type="button" id="langBtn" class="linkish" data-t="nav.lang"></button>
+  </nav>
+</header>
+
+<!-- ===== Landing ===== -->
+<main id="view-landing" class="scr" hidden>
+  <section class="card dark ticket hero">
+    <p class="stamp lat" data-t="stamp"></p>
+    <h1 class="disp h1" data-t="title"></h1>
+    <p class="lat sub" data-t="titleLat"></p>
     <hr>
-    <p class="tagline" data-t="tagline"></p>
+    <p class="small" data-t="tagline"></p>
   </section>
-  <p class="soon" data-t="soon"></p>
-  <p><a href="https://games.csiesheep.com/" data-t="hub"></a> · <button type="button" id="langBtn" class="linkish" data-t="nav.lang"></button></p>
-  <footer data-t="credit"></footer>
+  <button type="button" class="btn p" id="btnPlay" data-t="landing.play"></button>
+  <button type="button" class="btn" id="btnCreate" disabled data-t="landing.create"></button>
+  <div class="row">
+    <div class="input grow muted" id="joinCode" data-t="landing.code"></div>
+    <button type="button" class="btn sm" id="btnJoin" disabled data-t="landing.join"></button>
+  </div>
+  <p class="hint center" data-t="landing.soon"></p>
+  <p class="hint center" data-t="meta"></p>
+  <p class="about" data-t="landing.about"></p>
+  <p class="foot"><small data-t="credit"></small></p>
+  <p class="foot"><a href="https://games.csiesheep.com/">&larr; <span data-t="nav.hub"></span></a></p>
 </main>
-<script type="module">
-  import en from "./i18n/en.js";
-  import zh from "./i18n/zh-Hant.js";
-  const S = { en, "zh-Hant": zh };
-  const q = new URLSearchParams(location.search);
-  let lang = q.get("lang") || localStorage.getItem("lang") || (navigator.language.startsWith("zh") ? "zh-Hant" : "en");
-  if (!S[lang]) lang = "en";
-  function paint() {
-    document.documentElement.lang = lang;
-    for (const el of document.querySelectorAll("[data-t]")) {
-      el.textContent = el.dataset.t.split(".").reduce((o, k) => (o ? o[k] : ""), S[lang]) ?? "";
-    }
-  }
-  document.getElementById("langBtn").addEventListener("click", () => {
-    lang = lang === "en" ? "zh-Hant" : "en";
-    try { localStorage.setItem("lang", lang); } catch {}
-    paint();
-  });
-  paint();
-</script>
+
+<!-- ===== Solo setup ===== -->
+<main id="view-setup" class="scr" hidden>
+  <div class="bar"><a href="." data-link data-t="nav.back"></a><span data-t="nav.solo"></span></div>
+  <h2 class="disp h2" data-t="setup.title"></h2>
+  <p class="hint" id="setupSub"></p>
+  <label class="field"><span class="lab" data-t="setup.name"></span><input id="nameInput" maxlength="16" autocomplete="off"></label>
+  <span class="lab" data-t="setup.players"></span>
+  <div class="stepper card"><button type="button" class="btn ghost" id="pMinus">&minus;</button><b class="disp" id="pCount">六</b><button type="button" class="btn ghost" id="pPlus">+</button></div>
+  <p class="hint" data-t="setup.hint"></p>
+  <span class="lab" data-t="setup.level"></span>
+  <div class="seg" id="levelSeg">
+    <button type="button" data-level="easy" data-t="setup.easy"></button>
+    <button type="button" data-level="normal" class="on" data-t="setup.normal"></button>
+    <button type="button" data-level="hard" data-t="setup.hard"></button>
+  </div>
+  <label class="card check"><span><b data-t="setup.smuggling"></b><span class="hint block" data-t="setup.smugglingHint"></span></span><input type="checkbox" id="smugChk"></label>
+  <div class="spacer"></div>
+  <button type="button" class="btn p" id="btnStart" data-t="setup.start"></button>
+</main>
+
+<!-- ===== The carriage ===== -->
+<main id="view-table" class="scr table" hidden>
+  <div class="bar"><span id="barLeft"></span><span id="barRight"></span></div>
+  <div class="seats" id="seats"></div>
+  <div id="panel"></div>
+  <div id="hand"></div>
+  <div class="log" id="log" aria-live="polite"></div>
+  <details class="known" id="knownBox" hidden><summary data-t="table.knowledge"></summary><ul id="knownList"></ul></details>
+  <p class="foot"><a href="." data-link data-t="table.lobby"></a></p>
+</main>
+
+<!-- ===== Reveal overlay ===== -->
+<div id="overlay" class="overlay" hidden></div>
+
+<script type="module" src="app.js"></script>
 </body>
 </html>

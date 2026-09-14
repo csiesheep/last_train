@@ -340,8 +340,11 @@ export function apply(prev, action) {
       if (!hasPower(st, seat, "diplomat")) throw new Error("no diplomat to use");
       if (!ITEM_BY_KIND[action.kind]) throw new Error(`unknown item ${action.kind}`);
       if (!hand(st, seat).length) throw new Error("you need an item to trade back");
-      revealTrade(st, seat);
       const id = holdsKind(st, action.target, action.kind);
+      // A demand for the other suitcase when your only cards are the first
+      // one would leave nothing legal to give back; it is no demand at all.
+      if (id && !legalReturns(st, seat, action.kind).length) throw new Error("nothing legal to give back for that");
+      revealTrade(st, seat);
       if (!id) {
         learn(st, seat, { k: "hand", seat: action.target, items: hand(st, action.target).map((x) => ({ id: x, kind: st.items[x] })) });
         log(st, { type: "demand", seat, target: action.target, kind: action.kind, had: false });
@@ -962,7 +965,10 @@ export function legalActions(st, seat) {
       for (const target of others) push({ type: "attack", target });
       if (hasPower(st, seat, "fortune_teller") && st.pile.length >= 2) push({ type: "fortune" });
       if (hasPower(st, seat, "diplomat") && hand(st, seat).length) {
-        for (const target of others) for (const kind of Object.keys(ITEM_BY_KIND)) push({ type: "demand", target, kind });
+        for (const target of others) for (const kind of Object.keys(ITEM_BY_KIND)) {
+          if (holdsKind(st, target, kind) && !legalReturns(st, seat, kind).length) continue;
+          push({ type: "demand", target, kind });
+        }
       }
       const me = st.seats[seat];
       if (goalCount(st, seat, me.gang) >= 1 && !hand(st, seat).some((id) => ITEM_BY_KIND[st.items[id]].blocksDeclare)) push({ type: "declare", holders: {} });
