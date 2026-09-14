@@ -156,8 +156,13 @@
   <div class="seats" id="seats"></div>
   <div id="panel"></div>
   <div id="hand"></div>
-  <div class="log" id="log" aria-live="polite"></div>
-  <div class="row" id="chatRow" hidden><input id="chatIn" maxlength="200" autocomplete="off"><button type="button" class="btn sm" id="chatSend">↑</button></div>
+  <!-- Carriage talk: what the passengers say and what the carriage announces. -->
+  <div class="card talk" id="talk">
+    <div class="hd"><span class="lab" data-t="table.talk"></span><span class="hint" id="talkCount"></span></div>
+    <div class="msgs" id="log" aria-live="polite"></div>
+    <div class="quick" id="quick" hidden></div>
+    <div class="in" id="chatRow" hidden><input id="chatIn" maxlength="200" autocomplete="off"><button type="button" class="btn sm send" id="chatSend">↑</button></div>
+  </div>
   <details class="known" id="knownBox" hidden><summary data-t="table.knowledge"></summary><ul id="knownList"></ul></details>
   <p class="foot"><button type="button" class="linkish" id="tableLeave" data-t="table.lobby"></button></p>
 </main>

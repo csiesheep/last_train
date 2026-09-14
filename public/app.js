@@ -467,6 +467,7 @@ function render() {
   const legal = curLegal();
   handPick = null;
   $("chatRow").hidden = game.mode !== "net";
+  renderQuick(v);
   $("tableLeave").textContent = game.mode === "net" ? t("lobby.leave") : t("table.lobby");
   renderBar(v);
   renderPanel(v, legal);
@@ -510,34 +511,55 @@ function renderSeats(v, legal) {
   const box = clear($("seats"));
   const targets = seatPickTargets(v, legal);
   const f = v.scuffle;
-  const top = Math.ceil(v.n / 2);
-  const sits = [h("div", { class: "sit" }), h("div", { class: "sit" })];
+  const counted = !!f && ["doctor", "choice", "take"].includes(f.step);
+  const tally = (side) => 1 + Object.values(f.support).filter((x) => x === side).length;
+  const sw = f ? (counted ? f.swords : tally("attacker")) : 0, sh = f ? (counted ? f.shields : tally("defender")) : 0;
+  const sit = h("div", { class: "sit" });
   for (let s = 0; s < v.n; s++) {
     const sd = v.seats[s];
     const me = s === game.me;
     const pick = targets.includes(s);
-    let faceCls = "", side = null;
+    let role = "", big = false, stat;
     if (f) {
-      if (s === f.attacker) { faceCls = "atk"; side = h("span", { class: "atk" }, t("table.swords")); }
-      else if (s === f.defender) { faceCls = "def"; side = h("span", { class: "def" }, t("table.shields")); }
-      else if (f.support[s] === "attacker") { faceCls = "atk"; side = h("span", { class: "atk" }, t("table.backA")); }
-      else if (f.support[s] === "defender") { faceCls = "def"; side = h("span", { class: "def" }, t("table.backD")); }
-      else if (f.support[s] === "out") { faceCls = "dim"; side = h("span", {}, t(f.hypnotized === s ? "table.named" : "table.out")); }
+      const won = counted && !f.tie && f.winner === s ? " · " + t("table.win") : "";
+      if (s === f.attacker) { role = "a"; big = true; stat = h("span", { class: "stat atk" }, `${t("table.swords")} ${sw}${won}`); }
+      else if (s === f.defender) { role = "d"; big = true; stat = h("span", { class: "stat def" }, `${t("table.shields")} ${sh}${won}`); }
+      else if (f.support[s] === "attacker") { role = "a-sup"; stat = h("span", { class: "stat atk" }, t("table.backA")); }
+      else if (f.support[s] === "defender") { role = "d-sup"; stat = h("span", { class: "stat def" }, t("table.backD")); }
+      else if (f.support[s] === "out") { role = "out"; stat = h("span", { class: "stat" }, t(f.hypnotized === s ? "table.named" : "table.out")); }
+      else stat = h("span", { class: "stat" }, "…");
+    } else {
+      if (v.turn === s && v.phase !== "over" && v.phase !== "reveal") { role = "turn"; big = true; }
+      if (v.phase === "over" && sd.gang) stat = h("span", { class: "stat " + (sd.gang === E.TIMEKEEPERS ? "watch" : "seal") }, gangName(sd.gang));
+      else {
+        stat = h("span", { class: "stat" }, t("table.bags", { n: sd.items }) + (sd.trade ? " · " + tradeName(sd.trade) + (sd.tradeUsed ? " ✓" : "") : ""));
+        if (sd.drink) stat.append(icon("drink", 11));
+      }
     }
-    const bag = h("span", { class: "bag" }, t("table.bags", { n: sd.items }));
-    if (sd.trade) bag.append(" · " + tradeName(sd.trade) + (sd.tradeUsed ? " ✓" : ""));
-    if (sd.drink) bag.append(icon("drink", 12));
-    const extra = v.phase === "over" && sd.gang ? h("span", { class: "bag " + (sd.gang === E.TIMEKEEPERS ? "watch" : "seal") }, gangName(sd.gang)) : side ? h("span", { class: "bag" }, side) : null;
+    const badge = role === "a" || role === "a-sup" ? h("span", { class: "badge atk" }, icon("sword", 12))
+      : role === "d" || role === "d-sup" ? h("span", { class: "badge def" }, icon("shield", 12))
+      : role === "out" ? h("span", { class: "badge" }, icon("out", 12)) : null;
     const canSheet = !pick && !!sd.trade;
     const you = me ? (lang === "en" ? ` (${t("table.you")})` : `（${t("table.you")}）`) : "";
-    const el = h("button", { type: "button",
-      class: "fig" + (me ? " me" : "") + (v.turn === s && v.phase !== "over" && v.phase !== "reveal" ? " turn" : "") + (pick ? " pick" : ""),
+    sit.append(h("button", { type: "button",
+      class: "fig" + (me ? " me" : "") + (role ? " " + role : "") + (big ? " big" : "") + (pick ? " pick" : ""),
       disabled: !pick && !canSheet,
       onclick: pick ? () => onSeatPick(v, legal, s) : canSheet ? () => openTradeSheet(sd.trade, s) : null },
-      faceEl(s, faceCls), h("span", { class: "plate" }, nameOf(s) + you), bag, extra);
-    sits[s < top ? 0 : 1].append(el);
+      h("span", { class: "pp" }, faceEl(s, ""), badge), h("span", { class: "plate" }, nameOf(s) + you), stat));
   }
-  for (const sit of sits) if (sit.childElementCount) box.append(h("div", { class: "bench" }, h("div", { class: "shade" }), sit));
+  box.append(h("div", { class: "bench" }, h("div", { class: "shade" }), sit));
+}
+
+// The quick lines under the talk: one tap sends them, so nobody has to type on a phone.
+function renderQuick(v) {
+  const box = clear($("quick"));
+  box.hidden = game.mode !== "net" || !v.me;
+  if (box.hidden) return;
+  const gang = v.me.gang;
+  for (const line of S.table.quick || []) {
+    const text = line.replace("{gang}", gangName(gang)).replace("{goal}", itemName(E.GOAL[gang]));
+    box.append(h("button", { type: "button", class: "chip", onclick: () => send({ type: "chat", text }) }, text));
+  }
 }
 
 // ---------- pictures ----------
@@ -612,10 +634,12 @@ function renderKnown(v) {
 
 function renderLog() {
   const box = clear($("log"));
-  for (const l of game.log.slice(-60)) {
-    if (l.seat === null) box.append(h("div", { class: l.hot ? "hot" : "" }, l.text));
-    else box.append(h("div", { class: "say" }, faceEl(l.seat, "xs"), h("span", {}, h("b", {}, nameOf(l.seat)), h("i", {}, "："), l.text)));
+  const lines = game.log.slice(-30);
+  for (const l of lines) {
+    if (l.seat === null) box.append(h("div", { class: "sys" + (l.hot ? " hot" : "") }, l.text));
+    else box.append(h("div", { class: "msg" + (l.seat === game.me ? " me" : "") }, faceEl(l.seat, "xs"), h("div", { class: "bub" }, h("b", {}, nameOf(l.seat)), l.text)));
   }
+  $("talkCount").textContent = t("table.talkRecent", { n: lines.length });
   box.scrollTop = box.scrollHeight;
 }
 
@@ -777,28 +801,11 @@ function scuffleCard(v, legal) {
   const sw = counted ? f.swords : tally("attacker"), sh = counted ? f.shields : tally("defender");
   const title = counted && f.tie ? t("table.tie", { name: nameOf(f.attacker) }) : counted && f.winner != null ? t("table.won", { name: nameOf(f.winner) })
     : f.defender === me ? t("table.attackOnYou", { a: nameOf(f.attacker) }) : f.attacker === me ? t("table.youAttack", { b: nameOf(f.defender) }) : t("table.attackOn", { a: nameOf(f.attacker), b: nameOf(f.defender) });
-  card.append(h("div", { class: "title disp" }, h("span", {}, title), counted ? h("span", { class: "hint nowrap" }, t("log.count", { swords: sw, shields: sh }).replace(/[。.]$/, "")) : null));
-  const side = (s, cls, ic, n) => h("div", { class: "side" }, faceEl(s, "lg " + cls), h("span", { class: "nm" }, nameOf(s)), h("div", { class: "row", style: "gap:6px" }, h("span", { class: cls }, icon(ic, 20)), h("span", { class: "num " + cls }, String(n))));
-  card.append(h("div", { class: "duel" }, side(f.attacker, "atk", "sword", sw), h("span", { class: "vs lat" }, "vs"), side(f.defender, "def", "shield", sh)));
-  const shownOf = (s) => { const x = f.shown[s]; const out = []; if (!x) return out; for (const k of x.items) out.push(thumb(k, () => openItemSheet(k))); if (x.trade) out.push(h("button", { type: "button", class: "thumbbtn", title: tradeName(x.trade), onclick: () => openTradeSheet(x.trade, s) }, tradeImg(x.trade, "thumb"))); return out; };
-  const sup = h("div", { class: "sup" });
-  const started = Object.keys(f.support).length > 0 || Object.keys(f.shown).length > 0;
-  for (let s = 0; s < v.n && started; s++) {
-    if (s === f.attacker || s === f.defender) continue;
-    const st = f.support[s];
-    const cls = st === "attacker" ? "atk" : st === "defender" ? "def" : st === "out" ? "dim" : "";
-    const right = h("div", { class: "row", style: "gap:8px" }, ...shownOf(s));
-    if (st === "attacker") right.append(h("span", { class: "atk" }, t("table.backA")), h("span", { class: "atk" }, icon("sword", 18)));
-    else if (st === "defender") right.append(h("span", { class: "def" }, t("table.backD")), h("span", { class: "def" }, icon("shield", 18)));
-    else if (st === "out") right.append(...(f.hypnotized === s ? [h("span", { class: "tag" }, t("table.named"))] : []), h("span", { class: "hint" }, t("table.out")), h("span", { class: "hint" }, icon("out", 18)));
-    else right.append(h("span", { class: "hint" }, "…"));
-    sup.append(h("div", {}, h("div", { class: "row", style: "gap:8px" }, faceEl(s, "sm " + cls), h("span", {}, nameOf(s))), right));
-  }
-  for (const s of [f.attacker, f.defender]) {
-    const shown = shownOf(s);
-    if (shown.length) sup.append(h("div", {}, h("div", { class: "row", style: "gap:8px" }, faceEl(s, "sm"), h("span", {}, nameOf(s))), h("div", { class: "row", style: "gap:8px" }, ...shown)));
-  }
-  if (sup.childElementCount) card.append(sup);
+  card.append(h("div", { class: "title disp" }, h("span", {}, title)));
+  card.append(h("div", { class: "duel" },
+    h("div", { class: "who" }, faceEl(f.attacker, "duelface atk"), h("span", {}, nameOf(f.attacker))),
+    h("div", { class: "mid" }, h("span", { class: "atk" }, icon("sword", 22)), h("span", { class: "n atk lat" }, String(sw)), h("span", { class: "vs lat" }, "vs"), h("span", { class: "n def lat" }, String(sh)), h("span", { class: "def" }, icon("shield", 22))),
+    h("div", { class: "who" }, faceEl(f.defender, "duelface def"), h("span", {}, nameOf(f.defender)))));
   const iAct = v.waitingOn.includes(me);
   if (!iAct) { card.append(waiting(v)); return card; }
 

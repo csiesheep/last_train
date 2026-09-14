@@ -204,19 +204,26 @@ td .row { gap: 4px; flex-wrap: wrap; }
 .scr.table .card { background: rgba(22, 28, 40, 0.88); }
 .scr.table .card.dark { background: rgba(9, 12, 19, 0.92); }
 .seats { display: flex; flex-direction: column; gap: 8px; }
-.bench { position: relative; height: 154px; border: 1px solid var(--line); border-radius: 2px; background: var(--card) url(art/bench.jpg) center 35% / cover no-repeat; overflow: hidden; }
-.bench .shade { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(14,18,27,0.05) 0%, rgba(14,18,27,0.15) 50%, rgba(14,18,27,0.7) 100%); }
+.bench { position: relative; height: 150px; border: 1px solid var(--line); border-radius: 2px; background: var(--card) url(art/bench.jpg) center 35% / cover no-repeat; overflow: hidden; }
+.bench .shade { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(14,18,27,0.05) 0%, rgba(14,18,27,0.2) 50%, rgba(14,18,27,0.75) 100%); }
 .bench .sit { position: absolute; left: 0; right: 0; bottom: 6px; display: flex; justify-content: space-evenly; align-items: flex-end; }
-.fig { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 0 2px; border: 0; background: none; color: var(--bone); cursor: default; min-width: 0; flex: 1 1 0; max-width: 132px; }
+/* one seat: face, name, one status line; each part has a fixed height so a turn or a scuffle never moves the row */
+.fig { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 0 2px; border: 0; background: none; color: var(--bone); cursor: default; min-width: 0; flex: 1 1 0; max-width: 132px; }
 .fig:disabled { color: var(--bone); }
 .fig:not(:disabled) { cursor: pointer; }
-.fig .face { width: 64px; height: 64px; border: 2px solid rgba(230, 223, 208, 0.35); }
-.fig .face.atk { border-color: var(--rust); border-width: 3px; } .fig .face.def { border-color: var(--steel); border-width: 3px; }
+.fig .pp { position: relative; display: block; }
+.fig .face { width: 46px; height: 46px; border: 2px solid rgba(230, 223, 208, 0.35); }
+.fig.big .face { width: 72px; height: 72px; }
 .fig.me .face { border-color: var(--bone); }
-.fig.turn .face { border-color: var(--brass-hi); box-shadow: 0 0 22px rgba(201, 165, 79, 0.6); }
+.fig.turn .face { border-color: var(--brass-hi); box-shadow: 0 0 18px rgba(201, 165, 79, 0.6); }
+.fig.a .face, .fig.a-sup .face { border-color: var(--rust); border-width: 3px; }
+.fig.d .face, .fig.d-sup .face { border-color: var(--steel); border-width: 3px; }
+.fig.out .face { opacity: 0.45; }
 .fig.pick .face { outline: 2px dashed var(--brass-hi); outline-offset: 3px; }
-.fig .plate { font-size: 12px; font-weight: 500; background: rgba(9, 12, 19, 0.82); padding: 1px 7px; border-radius: 2px; white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
-.fig .bag { font-size: 10px; color: var(--grey); background: rgba(9, 12, 19, 0.72); padding: 0 5px; border-radius: 2px; white-space: nowrap; display: flex; gap: 3px; align-items: center; max-width: 100%; overflow: hidden; }
+.badge { position: absolute; right: -3px; top: -3px; width: 20px; height: 20px; border-radius: 50%; background: var(--deep); border: 1.5px solid currentColor; color: var(--grey); display: flex; align-items: center; justify-content: center; }
+.badge svg { width: 12px; height: 12px; }
+.fig .plate { font-size: 11px; font-weight: 500; background: rgba(9, 12, 19, 0.82); padding: 0 6px; border-radius: 2px; white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; line-height: 18px; height: 18px; }
+.fig .stat { font-size: 10px; line-height: 16px; height: 16px; color: var(--grey); background: rgba(9, 12, 19, 0.72); padding: 0 5px; border-radius: 2px; white-space: nowrap; max-width: 100%; overflow: hidden; display: flex; gap: 3px; align-items: center; }
 
 /* luggage pictures */
 .pic { width: 66px; min-width: 66px; height: 92px; border: 1px solid var(--line); border-radius: 3px; background: var(--deep); color: var(--bone); display: flex; flex-direction: column; align-items: center; justify-content: flex-start; overflow: hidden; padding: 0; cursor: pointer; }
@@ -233,13 +240,13 @@ td .row { gap: 4px; flex-wrap: wrap; }
 .linkish.plain { color: inherit; font: inherit; }
 
 /* the scuffle */
-.duel { display: grid; grid-template-columns: 1fr auto 1fr; gap: 8px; align-items: center; }
-.duel .side { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; }
-.duel .nm { font-weight: 500; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.duel .vs { font-size: 22px; color: var(--grey); font-style: italic; }
-.duel .num { font-family: var(--lat); font-size: 34px; font-weight: 700; line-height: 1; }
-.sup { display: flex; flex-direction: column; gap: 2px; font-size: 14px; }
-.sup > div { display: flex; justify-content: space-between; align-items: center; min-height: 40px; gap: 8px; }
+.duel { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.duel .who { display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 12px; min-width: 0; }
+.duel .who span { max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.duelface { width: 56px; height: 56px; }
+.duel .mid { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.duel .n { font-size: 40px; font-weight: 700; line-height: 1; font-variant-numeric: lining-nums; }
+.duel .vs { font-style: italic; font-size: 18px; color: var(--grey); padding: 0 4px; }
 
 /* the bottom sheet */
 .scrim { position: fixed; inset: 0; background: rgba(9, 12, 19, 0.55); z-index: 20; }
@@ -259,4 +266,22 @@ td .row { gap: 4px; flex-wrap: wrap; }
 /* log and result */
 .log .say { display: flex; gap: 8px; align-items: flex-start; color: var(--bone); }
 .log .say .face { margin-top: 1px; }
+/* carriage talk */
+.talk { padding: 0; overflow: hidden; display: flex; flex-direction: column; }
+.talk .hd { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; border-bottom: 1px solid var(--line); }
+.talk .msgs { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; max-height: 40vh; overflow-y: auto; font-size: 13px; }
+.msg { display: flex; gap: 8px; align-items: flex-start; }
+.msg .face { width: 24px; height: 24px; margin-top: 1px; }
+.msg .bub { background: var(--deep); border: 1px solid var(--line); border-radius: 2px; padding: 4px 9px; max-width: 80%; color: var(--bone); }
+.msg .bub b { color: var(--grey); font-weight: 500; font-size: 11px; display: block; letter-spacing: 0.05em; }
+.msg.me { flex-direction: row-reverse; }
+.msg.me .bub { background: rgba(168, 134, 58, 0.16); border-color: var(--brass); }
+.sys { font-size: 12px; color: var(--grey); text-align: center; padding: 0 16px; }
+.sys.hot { color: var(--bone); }
+.talk .quick { display: flex; gap: 6px; padding: 8px 12px 0; overflow-x: auto; }
+.chip { font-size: 12px; padding: 3px 10px; border: 1px solid var(--line); border-radius: 2px; color: var(--grey); white-space: nowrap; background: rgba(9, 12, 19, 0.6); cursor: pointer; }
+.chip:hover { color: var(--bone); }
+.talk .in { display: flex; gap: 8px; padding: 8px 12px; border-top: 1px solid var(--line); margin-top: 8px; }
+.talk .in input { min-height: 40px; }
+.talk .send { min-height: 40px; min-width: 44px; padding: 0 10px; }
 .over { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 18px 12px; text-align: center; }

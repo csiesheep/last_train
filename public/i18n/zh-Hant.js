@@ -87,7 +87,8 @@ export default {
     declareMine: "你有 {n} 件", declareWho: "其餘的在誰手上？", declareNeed: "還差 {n} 件", declareDrink: "（烈酒可頂一件，若你們人少）",
     declareGo: "就是他們，攤牌", declareNone: "你手上得先有一件自己的。", declareBlocked: "持有黑函不能攤牌。",
     solo: "亮出頭等票，獨自下車", again: "再搭一班", lobby: "回月台", continue: "繼續",
-    tapHint: "點一下看說明",
+    tapHint: "點一下看說明", talk: "車廂閒話", talkRecent: "最近 {n} 句", win: "贏",
+    quick: ["我是{gang}的", "誰有{goal}？", "別動手", "交換嗎？"],
     knowledge: "你知道的", known: { gang: "{name} 是{gang}", trade: "{name} 是{trade}", hand: "{name} 的行李：{items}" },
   },
   over: {

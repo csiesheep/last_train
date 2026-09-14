@@ -87,7 +87,8 @@ export default {
     declareMine: "You hold {n}", declareWho: "Who holds the rest?", declareNeed: "{n} more needed", declareDrink: "(a strong drink covers one, if your gang is the smaller)",
     declareGo: "Those are the ones. Show it", declareNone: "You need one of your own gang's items first.", declareBlocked: "The poison-pen letter's holder may not show their hand.",
     solo: "Show the first-class ticket and leave alone", again: "Board again", lobby: "Back to the platform", continue: "Continue",
-    tapHint: "tap one for its text",
+    tapHint: "tap one for its text", talk: "Carriage talk", talkRecent: "last {n}", win: "wins",
+    quick: ["I'm with {gang}", "Who has a {goal}?", "Don't fight", "Trade?"],
     knowledge: "What you know", known: { gang: "{name} is with {gang}", trade: "{name} is the {trade}", hand: "{name}'s bags: {items}" },
   },
   over: {
