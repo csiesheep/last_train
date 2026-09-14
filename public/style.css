@@ -90,9 +90,9 @@ html[lang=en] .land .h1 { font-size: 42px; }
 .scr.land .btn.p { background: var(--bone); }
 .scr.land input { background: rgba(9, 12, 19, 0.85); }
 .scr.land .row { align-items: stretch; }
-.scr.land .code-in { width: auto; min-height: 50px; letter-spacing: 0.3em; }
+.scr.land .code-in { flex: 1 1 0; width: 0; min-width: 0; min-height: 50px; letter-spacing: 0.3em; }
 .scr.land .code-in::placeholder { color: var(--grey); letter-spacing: 0.3em; }
-.scr.land #btnJoin { min-width: 96px; }
+.scr.land #btnJoin { min-width: 96px; flex: none; }
 .stamp { font-size: 13px; letter-spacing: 0.3em; color: var(--brass-hi); }
 .sub { font-style: italic; font-size: 21px; color: var(--grey); }
 .about { font-size: 13px; color: var(--grey); }
