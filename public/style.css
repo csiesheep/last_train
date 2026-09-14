@@ -173,7 +173,7 @@ html[lang=en] .land .h1 { font-size: 42px; }
 
 /* reveal overlay */
 .overlay { position: fixed; inset: 0; background: var(--deep); overflow-y: auto; z-index: 10; }
-.overlay .scr { min-height: 100svh; gap: 10px; padding-top: 10px; }
+.overlay .scr { min-height: calc(100svh - 44px); gap: 10px; padding-top: 10px; }
 .overlay .card.row { padding: 10px 12px; }
 .reveal { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 22px 16px; text-align: center; }
 .reveal .g { font-size: 40px; letter-spacing: 0.1em; }

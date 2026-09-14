@@ -892,6 +892,9 @@ function renderOverlay(v) {
   const me = v.me, gang = me.gang, other = E.other(gang);
   const tr = E.TRADE_BY_ID[me.trade];
   const rowCard = (img, ...body) => h("div", { class: "card row", style: "gap:12px;align-items:flex-start" }, img, h("div", { class: "stack", style: "gap:2px;flex:1;min-width:0" }, ...body));
+  ov.append(h("header", { class: "top" },
+    h("a", { href: ".", class: "brand disp", onclick: (e) => { e.preventDefault(); leaveRoom(); go(""); } }, t("title")),
+    h("nav", {}, h("a", { href: "rules" }, t("nav.rules")), h("button", { type: "button", class: "linkish", onclick: () => setLang(lang === "en" ? "zh-Hant" : "en") }, t("nav.lang")))));
   ov.append(h("main", { class: "scr" },
     h("div", { class: "card dark gangcard" }, h("img", { src: "art/gang_" + E.GOAL[gang] + ".jpg", alt: "" }),
       h("div", { class: "cap" }, h("span", { class: "lab" }, t("reveal.yourGang")), h("div", { class: "disp g " + (gang === E.TIMEKEEPERS ? "watch" : "seal") }, gangName(gang)),
