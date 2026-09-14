@@ -870,7 +870,7 @@ function overCard(v) {
   const table = h("table", {}, h("tr", {}, h("th", {}, t("over.passengers")), h("th", {}, t("over.gangCol")), h("th", {}, t("over.tradeCol")), h("th", {}, t("over.bagsCol"))));
   for (let s = 0; s < v.n; s++) {
     const sd = v.seats[s];
-    table.append(h("tr", {}, h("td", {}, h("div", { class: "row", style: "gap:6px" }, faceEl(s, "xs"), h("span", {}, nameOf(s) + (s === game.me ? ` (${t("table.you")})` : "")))), h("td", { class: sd.gang === E.TIMEKEEPERS ? "watch" : "seal" }, gangName(sd.gang)), h("td", {}, h("button", { type: "button", class: "linkish plain", onclick: () => openTradeSheet(sd.trade, s) }, tradeName(sd.trade))), h("td", { class: "icons" }, h("div", { class: "row" }, ...sd.hand.map((x) => thumb(x.kind, () => openItemSheet(x.kind)))))));
+    table.append(h("tr", {}, h("td", { class: "nowrap" }, h("div", { class: "row", style: "gap:6px;flex-wrap:nowrap" }, faceEl(s, "xs"), h("span", {}, nameOf(s) + (s === game.me ? ` (${t("table.you")})` : "")))), h("td", { class: "nowrap " + (sd.gang === E.TIMEKEEPERS ? "watch" : "seal") }, gangName(sd.gang)), h("td", {}, h("button", { type: "button", class: "linkish plain", onclick: () => openTradeSheet(sd.trade, s) }, tradeName(sd.trade))), h("td", { class: "icons" }, h("div", { class: "row" }, ...sd.hand.map((x) => thumb(x.kind, () => openItemSheet(x.kind)))))));
   }
   wrap.append(h("div", { class: "card" }, table));
   if (game.mode === "solo") wrap.append(btn(t("table.again"), "p", () => startGame()));

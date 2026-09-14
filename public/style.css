@@ -150,7 +150,7 @@ html[lang=en] .hero .h1 { font-size: 42px; }
 .reveal .lat { font-style: italic; color: var(--grey); }
 .over .g { font-size: 42px; letter-spacing: 0.1em; }
 table { border-collapse: collapse; width: 100%; font-size: 13px; }
-th, td { border-bottom: 1px solid var(--line); padding: 6px 4px; text-align: left; vertical-align: top; }
+th, td { border-bottom: 1px solid var(--line); padding: 6px 3px; text-align: left; vertical-align: middle; }
 th { color: var(--grey); font-weight: 500; }
 td .row { gap: 4px; flex-wrap: wrap; }
 
