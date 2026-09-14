@@ -70,25 +70,26 @@
 </header>
 
 <!-- ===== Landing ===== -->
-<main id="view-landing" class="scr" hidden>
-  <section class="hero">
-    <img src="art/hero.jpg" alt="" width="1080" height="600" fetchpriority="high">
-    <div class="fade"></div>
-    <div class="title">
+<main id="view-landing" class="scr land" hidden>
+  <div class="backdrop land" aria-hidden="true"><img src="art/hero.jpg" alt="" width="1080" height="600" fetchpriority="high"><div class="veil"></div></div>
+  <!-- The first screen: the title up top, the four controls pinned to the bottom, whatever the phone's height. -->
+  <div class="fold">
+    <section class="title">
       <p class="stamp lat" data-t="stamp"></p>
       <h1 class="disp h1" data-t="title"></h1>
       <p class="lat sub" data-t="titleLat"></p>
+      <p class="small tagline" data-t="tagline"></p>
+    </section>
+    <div class="spacer"></div>
+    <button type="button" class="btn p" id="btnPlay" data-t="landing.play"></button>
+    <label class="field"><span class="lab" data-t="landing.name"></span><input id="landName" maxlength="16" autocomplete="off"></label>
+    <button type="button" class="btn" id="btnCreate" data-t="landing.create"></button>
+    <div class="row">
+      <label class="field grow"><span class="lab" data-t="landing.code"></span><input id="joinCode" maxlength="4" autocapitalize="characters" autocomplete="off" placeholder="_ _ _ _"></label>
+      <button type="button" class="btn sm" id="btnJoin" data-t="landing.join"></button>
     </div>
-  </section>
-  <p class="small" data-t="tagline"></p>
-  <button type="button" class="btn p" id="btnPlay" data-t="landing.play"></button>
-  <label class="field"><span class="lab" data-t="landing.name"></span><input id="landName" maxlength="16" autocomplete="off"></label>
-  <button type="button" class="btn" id="btnCreate" data-t="landing.create"></button>
-  <div class="row">
-    <label class="field grow"><span class="lab" data-t="landing.code"></span><input id="joinCode" maxlength="4" autocapitalize="characters" autocomplete="off" placeholder="_ _ _ _"></label>
-    <button type="button" class="btn sm" id="btnJoin" data-t="landing.join"></button>
+    <p class="hint center" id="landStatus"></p>
   </div>
-  <p class="hint center" id="landStatus"></p>
   <p class="hint center" data-t="meta"></p>
   <!-- Static copy for crawlers; the script repaints it in the visitor's language. -->
   <p class="about" data-t="landing.about">一款隱藏陣營的卡牌遊戲：三到十位乘客分屬兩個幫會，靠交換與衝突探出誰是自己人、東西在誰手上，集齊三只懷錶或三枚玉印就攤牌。單人可與會說話的 AI 乘客同車，或開一間包廂和朋友連線。A hidden-gang card game for three to ten passengers: trade and scuffle to learn who is who, then show your hand once your side holds three pocket watches or three jade seals. Solo against AI passengers who talk, or online with friends. English and Traditional Chinese.</p>

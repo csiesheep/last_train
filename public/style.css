@@ -78,11 +78,17 @@ input[type=text], input:not([type]) { min-height: 46px; width: 100%; border: 1px
 .ticket { position: relative; }
 .ticket::before, .ticket::after { content: ""; position: absolute; top: 50%; width: 14px; height: 14px; border-radius: 50%; background: var(--ground); border: 1px solid var(--brass); transform: translateY(-50%); }
 .ticket::before { left: -8px; } .ticket::after { right: -8px; }
-.hero { position: relative; margin: -14px -20px 0; height: 380px; overflow: hidden; }
-.hero img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.hero .fade { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(14,18,27,0.2) 0%, rgba(14,18,27,0) 30%, rgba(14,18,27,0.6) 70%, var(--ground) 100%); }
-html[lang=en] .hero .h1 { font-size: 42px; }
-.hero .title { position: absolute; left: 20px; right: 20px; bottom: 14px; display: flex; flex-direction: column; gap: 2px; }
+/* landing: the station picture is the whole ground; the title sits up top and
+   the controls at the bottom of the first screen, whatever the phone's height */
+.fold { min-height: calc(100svh - 44px - 14px - 24px); display: flex; flex-direction: column; gap: 12px; }
+.land .title { display: flex; flex-direction: column; gap: 2px; padding-top: 22px; }
+.land .tagline { margin-top: 10px; white-space: pre-line; }
+html[lang=en] .land .h1 { font-size: 42px; }
+.backdrop.land img { opacity: 0.55; object-position: center 40%; }
+.backdrop.land .veil { background: linear-gradient(180deg, rgba(14,18,27,0.15) 0%, rgba(14,18,27,0.35) 35%, rgba(14,18,27,0.9) 62%, var(--ground) 80%); }
+.scr.land .btn { background: rgba(22, 28, 40, 0.88); }
+.scr.land .btn.p { background: var(--bone); }
+.scr.land input { background: rgba(9, 12, 19, 0.85); }
 .stamp { font-size: 13px; letter-spacing: 0.3em; color: var(--brass-hi); }
 .sub { font-style: italic; font-size: 21px; color: var(--grey); }
 .about { font-size: 13px; color: var(--grey); }
@@ -165,12 +171,12 @@ td .row { gap: 4px; flex-wrap: wrap; }
 .faces button.on img { outline: 2px solid var(--brass-hi); outline-offset: 2px; border-color: var(--brass-hi); }
 
 /* the carriage: a backdrop, two benches, glass cards */
-.scr.table { position: relative; z-index: 1; }
+.scr.table, .scr.land { position: relative; z-index: 1; }
 .backdrop { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
 .backdrop img { width: 100%; height: 100%; object-fit: cover; display: block; opacity: 0.22; }
 .backdrop .veil { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(14,18,27,0.25) 0%, rgba(14,18,27,0.75) 45%, var(--ground) 100%); }
-.scr.table > * { position: relative; z-index: 1; }
-.scr.table > .backdrop { position: fixed; z-index: 0; }
+.scr.table > *, .scr.land > * { position: relative; z-index: 1; }
+.scr.table > .backdrop, .scr.land > .backdrop { position: fixed; z-index: 0; }
 .scr.table .card { background: rgba(22, 28, 40, 0.88); }
 .scr.table .card.dark { background: rgba(9, 12, 19, 0.92); }
 .seats { display: flex; flex-direction: column; gap: 8px; }

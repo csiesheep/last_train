@@ -5,7 +5,8 @@ export default {
   title: "末班夜車",
   titleLat: "The Last Night Train",
   stamp: "23:40 · 三等臥鋪 · 終點站不明",
-  tagline: "一九三〇年代，最後一班夜車駛出站。同一節車廂裡，兩個幫會的人各懷心思。誰是自己人，誰的行李裡有你要的東西？交換、動手，然後在對的時刻攤牌。",
+  tagline: "夜車出站，同車的人各懷心思。
+交換、動手，攤牌。",
   meta: "3–10 人 · 約 30 分鐘 · 手機即可",
   credit: "同人作品，非官方，免費無需安裝。玩法啟發自 Michael Palm 與 Lukas Zach 設計的《Die Kutschfahrt zur Teufelsburg》；名稱、設定、美術與文字皆為本站原創。",
   nav: { back: "返回", rules: "規則", hub: "更多遊戲", lang: "EN", solo: "單人" },
