@@ -21,7 +21,7 @@ export default {
   goal: { timekeepers: "三只懷錶", sealbearers: "三枚玉印" },
   reveal: {
     only: "只有你看得到這一頁", yourGang: "你的幫會", yourTrade: "你的行當", yourBag: "你的行李",
-    goalText: "同會集齊{goal}就贏。對面的{other}要的是{otherGoal}。",
+    goalText: "同會集齊{goal}就贏。",
     once: "一局一次", always: "隨時", drink: "你有一杯烈酒：若你的幫會人少，攤牌時可當一件。",
     ready: "記住了，開車",
   },

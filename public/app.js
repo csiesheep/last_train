@@ -893,7 +893,6 @@ function renderOverlay(v) {
   const tr = E.TRADE_BY_ID[me.trade];
   const rowCard = (img, ...body) => h("div", { class: "card row", style: "gap:12px;align-items:flex-start" }, img, h("div", { class: "stack", style: "gap:2px;flex:1;min-width:0" }, ...body));
   ov.append(h("main", { class: "scr" },
-    h("div", { class: "row", style: "justify-content:center;gap:12px" }, faceEl(game.me, "me"), h("span", { class: "hint" }, t("reveal.only"))),
     h("div", { class: "card dark gangcard" }, h("img", { src: "art/gang_" + E.GOAL[gang] + ".jpg", alt: "" }),
       h("div", { class: "cap" }, h("span", { class: "lab" }, t("reveal.yourGang")), h("div", { class: "disp g " + (gang === E.TIMEKEEPERS ? "watch" : "seal") }, gangName(gang)),
         h("span", { class: "lat sub2" }, t("gang." + gang + "Lat") + " · " + t("goal." + gang)),

@@ -21,7 +21,7 @@ export default {
   goal: { timekeepers: "three pocket watches", sealbearers: "three jade seals" },
   reveal: {
     only: "Only you can see this", yourGang: "Your gang", yourTrade: "Your trade", yourBag: "Your luggage",
-    goalText: "Your gang wins when it holds {goal}. The other side, {other}, needs {otherGoal}.",
+    goalText: "Your gang wins when it holds {goal}.",
     once: "once a game", always: "always", drink: "You hold a strong drink: if your gang is the smaller one, it counts as an item when you show your hand.",
     ready: "Got it, depart",
   },
