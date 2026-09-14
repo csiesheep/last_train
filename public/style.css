@@ -246,7 +246,7 @@ td .row { gap: 4px; flex-wrap: wrap; }
 .sheet .grip { width: 40px; height: 3px; background: var(--line); border-radius: 2px; align-self: center; }
 .sheet .ttl { font-size: 24px; line-height: 1.2; }
 .art { width: 112px; height: 112px; object-fit: cover; border: 1px solid var(--brass); border-radius: 2px; flex-shrink: 0; }
-.art.sm { width: 104px; height: 104px; border-color: var(--line); }
+.art.sm { width: 120px; height: 120px; border-color: var(--line); }
 
 /* the reveal page */
 .gangcard { position: relative; padding: 0; overflow: hidden; }
