@@ -115,7 +115,7 @@ export default {
   lobby: {
     room: "包廂", code: "車次", copy: "複製連結", copied: "已複製", share: "分享", leave: "下車",
     seats: "乘客名單 {n} / {max}", need: "至少 {min} 人", addBot: "＋ 加一位 AI", remove: "移除", empty: "— 空位 —",
-    settings: "列車長設定", onlyHost: "只有你看得到",
+    settings: "列車長設定", onlyHost: "只有你看得到", ticketClass: "三等臥鋪",
     ready: "就座", notReady: "還沒就座", start: "開車 · {n} 人", host: "列車長", bot: "AI", away: "離線", you: "你",
     waiting: "等 {n} 位就座。", canStart: "都就座了。", hostStarts: "由列車長開車。",
     level: "AI 難度", smuggling: "走私", connecting: "連線中…", spectating: "這班車已經開了，你在旁觀。",

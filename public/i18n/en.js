@@ -115,7 +115,7 @@ export default {
   lobby: {
     room: "Compartment", code: "Code", copy: "Copy link", copied: "Copied", share: "Share", leave: "Leave",
     seats: "Manifest {n} of {max}", need: "at least {min}", addBot: "+ add an AI passenger", remove: "remove", empty: "— empty —",
-    settings: "Conductor's settings", onlyHost: "only you see this",
+    settings: "Conductor's settings", onlyHost: "only you see this", ticketClass: "THIRD CLASS",
     ready: "Seated", notReady: "Not seated", start: "Depart · {n}", host: "CONDUCTOR", bot: "AI", away: "AWAY", you: "you",
     waiting: "Waiting for {n} to take a seat.", canStart: "Everyone is seated.", hostStarts: "The conductor departs the train.",
     level: "AI level", smuggling: "Smuggling", connecting: "Connecting…", spectating: "This train has left. You are watching.",

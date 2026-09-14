@@ -89,6 +89,8 @@ html[lang=en] .land .h1 { font-size: 42px; }
 .scr.land .btn { background: rgba(22, 28, 40, 0.88); }
 .scr.land .btn.p { background: var(--bone); }
 .scr.land input { background: rgba(9, 12, 19, 0.85); }
+/* on a wide screen nothing is pinned: the controls follow the title and the page fits without scrolling */
+@media (min-width: 700px) { .fold { min-height: 0; } .fold .spacer { flex: 0 0 28px; } .land .title { padding-top: 10px; } .scr.land { min-height: 0; } }
 .scr.land .row { align-items: stretch; }
 .scr.land .code-in { flex: 1 1 0; width: 0; min-width: 0; min-height: 50px; letter-spacing: 0.3em; }
 .scr.land .code-in::placeholder { color: var(--grey); letter-spacing: 0.3em; }
@@ -143,8 +145,8 @@ html[lang=en] .land .h1 { font-size: 42px; }
 .tix .in { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
 .tix .in .lab { color: #6b5a3a; letter-spacing: 0.3em; }
 .tix .code { font-size: 54px; font-weight: 700; letter-spacing: 0.32em; line-height: 1; margin-left: 0.32em; color: #2b2418; }
-.tix .no { position: absolute; left: 14px; top: 10px; font-size: 12px; letter-spacing: 0.18em; color: #6b5a3a; }
-.tix .acts { position: absolute; right: 14px; top: 8px; font-size: 12px; letter-spacing: 0.1em; color: #6b5a3a; }
+.tix .no { position: absolute; left: 44px; top: 12px; font-size: 12px; letter-spacing: 0.18em; color: #6b5a3a; }
+.tix .acts { position: absolute; right: 14px; top: 10px; font-size: 12px; letter-spacing: 0.1em; color: #6b5a3a; }
 .tixlink { color: #6b5a3a; font-size: 12px; letter-spacing: 0.1em; text-decoration: underline; text-underline-offset: 3px; }
 .tixlink:hover { color: #2b2418; }
 .tix .stamp { position: absolute; right: 14px; bottom: 10px; max-width: 60%; font-size: 11px; letter-spacing: 0.18em; color: var(--rust); border: 1.5px solid var(--rust); padding: 2px 8px; border-radius: 2px; transform: rotate(-6deg); opacity: 0.9; font-weight: 700; text-align: center; }
