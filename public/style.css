@@ -281,12 +281,12 @@ td .row { gap: 4px; flex-wrap: wrap; }
 /* carriage talk */
 .talk { padding: 0; overflow: hidden; display: flex; flex-direction: column; }
 /* folding cards: a header row that is a button, a caret that turns when open */
-.fold { padding: 0; overflow: hidden; display: flex; flex-direction: column; }
-.fold .hd { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 8px 12px; width: 100%; border: 0; background: none; color: inherit; text-align: left; cursor: pointer; }
-.fold .hd .preview { flex: 1; min-width: 0; font-size: 12px; color: var(--grey); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: right; }
-.fold .caret { width: 18px; height: 18px; color: var(--grey); flex-shrink: 0; transition: transform 0.15s; }
-.fold.open .caret { transform: rotate(180deg); }
-.fold .body { border-top: 1px solid var(--line); }
+.fd { padding: 0; overflow: hidden; display: flex; flex-direction: column; }
+.fd .hd { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 8px 12px; width: 100%; border: 0; background: none; color: inherit; text-align: left; cursor: pointer; }
+.fd .hd .preview { flex: 1; min-width: 0; font-size: 12px; color: var(--grey); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: right; }
+.fd .caret { width: 18px; height: 18px; color: var(--grey); flex-shrink: 0; transition: transform 0.15s; }
+.fd.open .caret { transform: rotate(180deg); }
+.fd .body { border-top: 1px solid var(--line); }
 .glog { display: flex; flex-direction: column; padding: 6px 12px 10px; font-size: 13px; max-height: 50vh; overflow-y: auto; }
 .stopline { display: flex; align-items: center; gap: 8px; margin: 8px 0 4px; }
 .stopline .ln { flex: 1; height: 1px; background: var(--line); }
