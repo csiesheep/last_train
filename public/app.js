@@ -1053,6 +1053,10 @@ function overCard(v) {
     const by = v.event && v.event.by != null ? nameOf(v.event.by) : "";
     head.append(h("img", { class: "medal", src: "art/gang_" + E.GOAL[v.winner] + ".jpg", alt: "" }), h("div", { class: "disp g " + (v.winner === E.TIMEKEEPERS ? "watch" : "seal") }, t("over.gangWins", { gang: gangName(v.winner) })), h("span", { class: "hint" }, t(v.reason === "declared" ? "over.declared" : "over.wrong", { name: by })));
   }
+  if (game.me !== null && v.me) {
+    const won = soloWin ? v.winner === game.me : v.me.gang === v.winner;
+    head.append(h("div", { class: "you " + (won ? "won" : "lost") }, t(won ? "over.youWin" : "over.youLose")));
+  }
   wrap.append(head);
   const table = h("table", {}, h("tr", {}, h("th", {}, t("over.passengers")), h("th", {}, t("over.gangCol")), h("th", {}, t("over.tradeCol")), h("th", {}, t("over.bagsCol"))));
   for (let s = 0; s < v.n; s++) {

@@ -94,7 +94,7 @@ export default {
   },
   over: {
     gangWins: "{gang} 勝", soloWins: "{name} 獨自下車", declared: "{name} 攤牌，全對。", wrong: "{name} 攤牌，錯了。", solo: "頭等票加三件，誰也攔不住。",
-    passengers: "乘客", gangCol: "幫會", tradeCol: "行當", bagsCol: "行李",
+    passengers: "乘客", gangCol: "幫會", tradeCol: "行當", bagsCol: "行李", youWin: "你贏了", youLose: "你輸了",
   },
   log: {
     start: "開車。{name} 先走。",

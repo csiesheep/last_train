@@ -94,7 +94,7 @@ export default {
   },
   over: {
     gangWins: "{gang} win", soloWins: "{name} leaves alone", declared: "{name} showed their hand, and it was right.", wrong: "{name} showed their hand, and it was wrong.", solo: "The first-class ticket and three items: nobody could stop it.",
-    passengers: "Passenger", gangCol: "Gang", tradeCol: "Trade", bagsCol: "Bags",
+    passengers: "Passenger", gangCol: "Gang", tradeCol: "Trade", bagsCol: "Bags", youWin: "You won", youLose: "You lost",
   },
   log: {
     start: "Departure. {name} goes first.",

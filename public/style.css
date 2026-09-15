@@ -178,7 +178,10 @@ html[lang=en] .land .h1 { font-size: 42px; }
 .reveal { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 22px 16px; text-align: center; }
 .reveal .g { font-size: 40px; letter-spacing: 0.1em; }
 .reveal .lat { font-style: italic; color: var(--grey); }
-.over .g { font-size: 42px; letter-spacing: 0.1em; }
+.over .g { font-size: 36px; letter-spacing: 0.1em; line-height: 1.2; }
+.over .you { margin-top: 6px; font-size: 18px; font-weight: 700; letter-spacing: 0.2em; padding: 4px 14px; border-radius: 2px; }
+.over .you.won { color: var(--deep); background: var(--brass-hi); }
+.over .you.lost { color: var(--bone); border: 1px solid var(--line); }
 table { border-collapse: collapse; width: 100%; font-size: 13px; }
 th, td { border-bottom: 1px solid var(--line); padding: 6px 3px; text-align: left; vertical-align: middle; }
 th { color: var(--grey); font-weight: 500; }
