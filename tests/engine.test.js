@@ -70,7 +70,19 @@ test("the luggage deck is 21 cards, 20 at three and at ten players", () => {
   assert.equal(E.deckSize(6), 21);
   assert.equal(E.deckSize(3), 20);
   assert.equal(E.deckSize(10), 20);
-  assert.equal(E.TRADES.length, 10);
+  assert.equal(E.TRADE_IDS.length, 10);
+});
+
+test("expansion cards stay out unless switched on", () => {
+  assert.deepEqual(E.tradePool({}), E.TRADE_IDS);
+  assert.equal(E.deckSize(6, { dlc: { gold: true } }), 22);
+  assert.equal(E.tradePool({ dlc: { double: true, porter: true, gambler: true } }).length, 13);
+  const plain = E.createGame(5, 6);
+  assert.deepEqual(plain.options.dlc, {});
+  assert.ok(!Object.values(plain.items).includes("gold_bar"));
+  const on = E.createGame(5, 6, { dlc: { gold: true, porter: true } });
+  assert.ok(Object.values(on.items).includes("gold_bar"));
+  assert.deepEqual(on.options.dlc, { gold: true, porter: true });
 });
 
 test("setup for every count: one item each (two at three), both cases dealt, gangs split, trades unique", () => {

@@ -163,7 +163,7 @@ export function itemBelief(view, gang) {
   const n = view.n, me = view.seat, PILE = n;
   const ids = goalIds(view, gang);
   const each = n === 3 ? 2 : 1;
-  const pile0 = E.deckSize(n) - n * each;
+  const pile0 = E.deckSize(n, view.options) - n * each;
   const bel = {};
   for (const id of ids) {
     const p = new Array(n + 1).fill(0);
@@ -234,9 +234,11 @@ export function itemBelief(view, gang) {
             // A winner takes the best card there is, and a goal item usually
             // is that card, so it moves with more than an even share.
             const loser = e.winner === e.attacker ? e.defender : e.attacker;
-            if (loser !== me && e.winner !== me) move(loser, e.winner, Math.min(0.9, 2 / h(loser)));
+            // A porter hands over the least useful bag instead.
+            if (loser !== me && e.winner !== me) move(loser, e.winner, e.yielded ? 0.2 / h(loser) : Math.min(0.9, 2 / h(loser)));
             bump(loser, -1); bump(e.winner, 1);
           }
+          if (e.choice === "bribe") { bump(e.winner === e.attacker ? e.defender : e.attacker, -1); bump(e.winner, 1); }
           break;
         }
         case "gift":
@@ -289,7 +291,8 @@ export function pAtLeast(bel, seat, k) {
 }
 
 // ---------- values ----------
-const TRADE_VALUE = { priest: 5, doctor: 4.5, pharmacist: 4.5, diplomat: 3.5, gunman: 3, hypnotist: 3, thug: 3, master: 3, bodyguard: 2.5, fortune_teller: 2 };
+const TRADE_VALUE = { priest: 5, doctor: 4.5, pharmacist: 4.5, diplomat: 3.5, gunman: 3, hypnotist: 3, thug: 3, master: 3, bodyguard: 2.5, fortune_teller: 2,
+  double: 3, porter: 2.5, gambler: 3 };
 
 function context(view) {
   const me = view.me;
@@ -313,6 +316,7 @@ function context(view) {
       case "codebook": case "trench_coat": return me.tradeUsed ? 2.5 : 1;
       case "timetable": return 1;
       case "broken_mirror": return 0.5;
+      case "gold_bar": return 4;
       case "black_letter": return -3;
       default: return 1;
     }
@@ -377,6 +381,7 @@ function fightOutlook(ctx, attacker, defender, edge) {
     for (const x of me.items) if (role === "attacker" ? x.kind === "dagger" : x.kind === "gloves") m += 1;
     if (role === "attacker" && me.trade === "thug") m += 1;
     if (role === "defender" && me.trade === "master") m += 1;
+    if ((role === "attacker" || role === "defender") && me.trade === "gambler") m += 1; // the die averages one
     return m;
   };
   const swords = 1 + mods(attacker, "attacker") + backers;
@@ -475,6 +480,12 @@ export function decide(view, legal, level = "normal", rng = E.makeRng(E.randomSe
           const take = bestSpare && TRADE_VALUE[bestSpare] > mineV + 0.5;
           return { ...legal.find((a) => a.trade === (take ? bestSpare : null)), why: take ? "new_trade" : "keep_trade" };
         }
+        case "disguise": {
+          // Lie to someone who is probably not on my side.
+          const looker = t.from === seat ? t.to : t.from;
+          const lie = !!legal.find((a) => a.lie) && ally[looker] < 0.5;
+          return { ...legal.find((a) => !!a.lie === lie), why: lie ? "disguise" : "truth" };
+        }
         case "direction": return { ...pick(legal), why: "direction" };
         case "passItems": return { ...legal.find((a) => a.item === cheapest(legal.map((a) => a.item))), why: "pass_item" };
       }
@@ -539,6 +550,18 @@ export function decide(view, legal, level = "normal", rng = E.makeRng(E.randomSe
           const hurt = loser !== null && (loser === seat || ally[loser] >= 0.7);
           const stake = loser !== null && (view.seats[loser].items > 0 || loser === seat);
           return hurt && stake ? { ...use, why: "doctor" } : { ...skip, why: "skip" };
+        }
+        case "yield": return { ...legal.find((a) => a.item === cheapest(legal.map((a) => a.item))), why: "yield" };
+        case "bribe": {
+          // Pay rather than let a likely enemy look or take.
+          const pay = legal.find((a) => a.pay);
+          if (pay && ally[f.winner] < 0.6) return { ...pay, why: "bribe" };
+          return { ...legal.find((a) => !a.pay), why: "no_bribe" };
+        }
+        case "disguise": {
+          const lie = legal.find((a) => a.lie);
+          if (lie && ally[f.winner] < 0.5) return { ...lie, why: "disguise" };
+          return { ...legal.find((a) => !a.lie), why: "truth" };
         }
         case "choice": {
           const take = legal.find((a) => a.take);

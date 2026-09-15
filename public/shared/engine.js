@@ -50,6 +50,8 @@ export const ITEMS = [
   { id: "black_letter", count: 1, mustAccept: true, blocksDeclare: true, notAt: [3] },
   { id: "broken_mirror", count: 1, mustAccept: true, silent: true },
   { id: "first_class_ticket", count: 1, solo: true },
+  // Expansion, dealt only when the game's options switch it on.
+  { id: "gold_bar", count: 1, fight: "bribe", dlc: "gold" },
 ];
 export const ITEM_BY_KIND = Object.fromEntries(ITEMS.map((it) => [it.id, it]));
 
@@ -65,11 +67,20 @@ export const TRADES = [
   { id: "bodyguard" },                  // the side you support gets +1
   { id: "priest", once: true },         // stop a scuffle before support
   { id: "thug" },                       // +1 as attacker
+  // Expansion trades, dealt only when the game's options switch them on.
+  { id: "double", once: true, dlc: "double" }, // show the other gang to someone looking at yours
+  { id: "porter", dlc: "porter" },             // hand limit +2; picks the bag a scuffle winner takes
+  { id: "gambler", dlc: "gambler" },           // as attacker or defender, a coin: +0 or +2
 ];
-export const TRADE_IDS = TRADES.map((t) => t.id);
+export const TRADE_IDS = TRADES.filter((t) => !t.dlc).map((t) => t.id);
 export const TRADE_BY_ID = Object.fromEntries(TRADES.map((t) => [t.id, t]));
 
-export const deckSize = (n) => ITEMS.filter((it) => !(it.notAt || []).includes(n)).reduce((s, it) => s + it.count, 0);
+// Expansion switches, as `options.dlc = { gold: true, ... }`.
+export const EXPANSIONS = ["gold", "double", "porter", "gambler"];
+const dlcOn = (options, key) => !key || !!(options && options.dlc && options.dlc[key]);
+export const tradePool = (options) => TRADES.filter((t) => dlcOn(options, t.dlc)).map((t) => t.id);
+export const itemsInPlay = (n, options) => ITEMS.filter((it) => !(it.notAt || []).includes(n) && dlcOn(options, it.dlc));
+export const deckSize = (n, options) => itemsInPlay(n, options).reduce((s, it) => s + it.count, 0);
 
 // ---------- seeded RNG (mulberry32), so a game replays from seed + actions ----------
 export function makeRng(seed) {
@@ -117,7 +128,7 @@ export function createGame(seed, n, options = {}) {
   const minority = isOdd(n) ? (gangSizes[TIMEKEEPERS] < gangSizes[SEALBEARERS] ? TIMEKEEPERS : SEALBEARERS) : null;
 
   // Trades: one each, the rest stay in the box (the trench coat draws from them).
-  const trades = shuffle(rng, TRADE_IDS);
+  const trades = shuffle(rng, tradePool(options));
   const dealtTrades = trades.slice(0, n);
   const spareTrades = trades.slice(n);
 
@@ -125,8 +136,7 @@ export function createGame(seed, n, options = {}) {
   // others are dealt, the rest is the face-down pile (top = last).
   const items = {};
   const all = [];
-  for (const it of ITEMS) {
-    if ((it.notAt || []).includes(n)) continue;
+  for (const it of itemsInPlay(n, options)) {
     for (let i = 1; i <= it.count; i++) {
       const id = it.count > 1 ? `${it.id}${i}` : it.id;
       items[id] = it.id;
@@ -153,7 +163,8 @@ export function createGame(seed, n, options = {}) {
 
   return {
     seed, n,
-    options: { smuggling: !!options.smuggling, gunmanBonus: !!options.gunmanBonus },
+    options: { smuggling: !!options.smuggling, gunmanBonus: !!options.gunmanBonus,
+      dlc: Object.fromEntries(EXPANSIONS.filter((k) => options.dlc && options.dlc[k]).map((k) => [k, true])) },
     phase: "reveal",          // reveal | turn | peek | trade | scuffle | handLimit | over
     ready: new Array(n).fill(false),
     turn: rng.int(n),         // whose turn it is
@@ -176,6 +187,9 @@ export const kindOf = (st, id) => st.items[id];
 export const nextSeat = (st, s) => (s + 1) % st.n;
 export const prevSeat = (st, s) => (s + st.n - 1) % st.n;
 export const handLimit = (st) => HAND_LIMIT[st.n];
+// A seat's own limit: the porter carries two more.
+export const limitFor = (st, seat) => HAND_LIMIT[st.n] + (st.seats[seat].trade === "porter" ? 2 : 0);
+const dlc = (st, key) => !!(st.options.dlc && st.options.dlc[key]);
 const hand = (st, s) => st.seats[s].items;
 const has = (st, s, id) => hand(st, s).includes(id);
 const kinds = (st, ids) => ids.map((id) => st.items[id]);
@@ -249,7 +263,7 @@ export function mustAct(st) {
       const t = st.trade;
       if (t.step === "answer") return [t.to];
       if (t.step === "return") return [t.from];
-      if (t.step === "codebook" || t.step === "coat" || t.step === "direction") return [t.actor];
+      if (t.step === "codebook" || t.step === "coat" || t.step === "direction" || t.step === "disguise") return [t.actor];
       if (t.step === "passItems") return Object.keys(t.passes).map(Number).filter((s) => t.passes[s] === null);
       return [];
     }
@@ -263,6 +277,7 @@ export function mustAct(st) {
         case "hypnotist": return [f.attacker];
         case "powers": return f.window.filter((s) => !f.answered.includes(s));
         case "choice": case "take": return [f.winner];
+        case "bribe": case "disguise": case "yield": return [loserOf(f)];
         default: return [];
       }
     }
@@ -478,7 +493,7 @@ export function apply(prev, action) {
         attacker: seat, defender: action.target, step: "priest",
         window: [], answered: [], priest: null, gunman: null, hypnotized: null,
         support: {}, next: null, shown: {}, pharmacist: null, doctor: null,
-        swords: 0, shields: 0, winner: null, tie: false, drew: false, choice: null,
+        swords: 0, shields: 0, winner: null, tie: false, drew: false, choice: null, dice: null,
       };
       st.phase = "scuffle";
       openWindow(st, "priest", allBut(st, [seat]));
@@ -577,12 +592,11 @@ export function apply(prev, action) {
         f.choice = "take";
         f.step = "take";
         learn(st, seat, { k: "hand", seat: loser, items: hand(st, loser).map((x) => ({ id: x, kind: st.items[x] })) });
+        // A porter picks which bag goes, and shows the card doing it.
+        if (st.seats[loser].trade === "porter") { f.step = "yield"; revealTrade(st, loser); }
         return st;
       }
-      f.choice = "peek";
-      learn(st, seat, { k: "gang", seat: loser, gang: st.seats[loser].gang });
-      learn(st, seat, { k: "trade", seat: loser, trade: st.seats[loser].trade });
-      finishScuffle(st);
+      peekLoser(st);
       return st;
     }
     case "takeItem": {
@@ -598,6 +612,52 @@ export function apply(prev, action) {
       return st;
     }
 
+    // ---- expansion: the porter, the gold bar and the double agent ----
+    case "yieldItem": {
+      needPhase("scuffle"); checkSeat();
+      const f = st.scuffle;
+      if (f.step !== "yield" || seat !== loserOf(f)) throw new Error("not your bag to hand over");
+      needMine(action.item);
+      moveItem(st, action.item, seat, f.winner);
+      learn(st, seat, { k: "lost", to: f.winner, id: action.item, kind: st.items[action.item] });
+      learn(st, f.winner, { k: "got", from: seat, id: action.item, kind: st.items[action.item] });
+      f.taken = action.item;
+      f.yielded = true;
+      finishScuffle(st);
+      return st;
+    }
+    case "bribe": {
+      needPhase("scuffle"); checkSeat();
+      const f = st.scuffle;
+      if (f.step !== "bribe" || seat !== loserOf(f)) throw new Error("not your bribe");
+      if (!action.pay) { toChoice(st); return st; }
+      const id = holdsKind(st, seat, "gold_bar");
+      if (!id) throw new Error("no gold bar to pay with");
+      moveItem(st, id, seat, f.winner);
+      learn(st, f.winner, { k: "got", from: seat, id, kind: "gold_bar" });
+      learn(st, seat, { k: "gave", to: f.winner, id, kind: "gold_bar" });
+      f.choice = "bribe";
+      finishScuffle(st);
+      return st;
+    }
+    case "disguise": {
+      checkSeat();
+      if (action.lie && !hasPower(st, seat, "double")) throw new Error("no double agent to use");
+      if (st.phase === "trade" && st.trade.step === "disguise" && seat === st.trade.actor) {
+        const t = st.trade;
+        seen(st, t.looker, seat, !!action.lie, false);
+        t.step = null; t.actor = null; t.looker = null;
+        continueTexts(st);
+        return st;
+      }
+      if (st.phase === "scuffle" && st.scuffle.step === "disguise" && seat === loserOf(st.scuffle)) {
+        seen(st, st.scuffle.winner, seat, !!action.lie, true);
+        finishScuffle(st);
+        return st;
+      }
+      throw new Error(`nothing to disguise during ${st.phase}`);
+    }
+
     // ---- hand limit ----
     case "gift": {
       needPhase("handLimit"); checkSeat(); checkSeat(action.to);
@@ -608,7 +668,7 @@ export function apply(prev, action) {
       learn(st, action.to, { k: "got", from: seat, id: action.item, kind: st.items[action.item] });
       learn(st, seat, { k: "gave", to: action.to, id: action.item, kind: st.items[action.item] });
       log(st, { type: "gift", from: seat, to: action.to });
-      if (hand(st, seat).length <= handLimit(st)) st.pending.shift();
+      if (hand(st, seat).length <= limitFor(st, seat)) st.pending.shift();
       overLimit(st, action.to);
       if (!st.pending.length) resumeAfter(st);
       return st;
@@ -701,6 +761,8 @@ function continueTexts(st) {
         learn(st, giver, { k: "hand", seat: partner, items: hand(st, partner).map((x) => ({ id: x, kind: st.items[x] })) });
         break;
       case "see_gang":
+        // With the double agent in the game, everyone looked at is asked.
+        if (dlc(st, "double")) { t.step = "disguise"; t.actor = partner; t.looker = giver; return; }
         learn(st, giver, { k: "gang", seat: partner, gang: st.seats[partner].gang });
         break;
       case "swap_trades":
@@ -764,6 +826,7 @@ function tradeUsable(trade, role) {
     case "master": return role === "defender";
     case "bodyguard": return role === "backer" || role === "guard";
     case "pharmacist": return role === "bystander" || role === "backer" || role === "guard";
+    case "gambler": return role === "attacker" || role === "defender";
     default: return false;
   }
 }
@@ -845,18 +908,11 @@ function settleScuffle(st) {
           finishScuffle(st);
           return;
         }
-        {
-          const loser = f.winner === f.attacker ? f.defender : f.attacker;
-          f.step = "choice";
-          if (!hand(st, loser).length) {
-            // Nothing to take: the peek is the only prize.
-            f.choice = "peek";
-            learn(st, f.winner, { k: "gang", seat: loser, gang: st.seats[loser].gang });
-            learn(st, f.winner, { k: "trade", seat: loser, trade: st.seats[loser].trade });
-            finishScuffle(st);
-          }
-          return;
-        }
+        // A loser with a gold bar may pay it instead; with the bar in the
+        // game every loser with a hand is asked, so the pause says nothing.
+        if (dlc(st, "gold") && hand(st, loserOf(f)).length) { f.step = "bribe"; return; }
+        toChoice(st);
+        return;
       default:
         return;
     }
@@ -883,6 +939,11 @@ function count(st) {
     if (shown.trade === "thug") swords++;
     if (shown.trade === "master") shields++;
     if (shown.trade === "bodyguard") { if (role === "backer") swords++; else shields++; }
+    if (shown.trade === "gambler") {
+      const roll = withRng(st, (rng) => rng.int(2)) * 2; // +0 or +2
+      f.dice = { seat, roll };
+      if (role === "attacker") swords += roll; else shields += roll;
+    }
   }
   if (f.gunman !== null && st.options.gunmanBonus) { if (f.gunman === f.attacker) swords++; else shields++; }
   f.swords = swords; f.shields = shields;
@@ -901,7 +962,7 @@ function scuffleEntry(st, extra = {}) {
     support: { ...f.support },
     shown: Object.fromEntries(Object.entries(f.shown).map(([s, x]) => [s, { items: kinds(st, x.items), trade: x.trade }])),
     pharmacist: f.pharmacist ? f.pharmacist.seat : null,
-    swords: f.swords, shields: f.shields, winner: f.winner, tie: f.tie, drew: f.drew, choice: f.choice,
+    swords: f.swords, shields: f.shields, winner: f.winner, tie: f.tie, drew: f.drew, choice: f.choice, dice: f.dice || null, yielded: !!f.yielded,
     ...extra,
   };
 }
@@ -916,9 +977,40 @@ function finishScuffle(st) {
   endTurn(st);
 }
 
+function loserOf(f) { return f.winner === f.attacker ? f.defender : f.attacker; }
+// The winner picks look or take; facing an empty hand, the look is the only prize.
+function toChoice(st) {
+  const f = st.scuffle;
+  f.step = "choice";
+  if (!hand(st, loserOf(f)).length) peekLoser(st);
+}
+function peekLoser(st) {
+  const f = st.scuffle;
+  f.choice = "peek";
+  if (dlc(st, "double")) { f.step = "disguise"; return; }
+  seen(st, f.winner, loserOf(f), false, true);
+  finishScuffle(st);
+}
+// `looker` sees `seat`'s gang card, and in a scuffle the trade too. A double
+// agent who lies shows the other gang and, so the card does not give the lie
+// away, a trade from the box; the power is spent without anyone being told.
+function seen(st, looker, seat, lie, withTrade) {
+  const sd = st.seats[seat];
+  let trade = sd.trade;
+  if (lie) {
+    sd.tradeUsed = true;
+    if (st.spareTrades.length) trade = withRng(st, (rng) => st.spareTrades[rng.int(st.spareTrades.length)]);
+  }
+  learn(st, looker, { k: "gang", seat, gang: lie ? other(sd.gang) : sd.gang });
+  if (withTrade) learn(st, looker, { k: "trade", seat, trade });
+}
+
 // ---------- hand limit, turn end, game end ----------
 function overLimit(st, seat) {
-  if (hand(st, seat).length > handLimit(st) && !st.pending.includes(seat)) st.pending.push(seat);
+  const held = hand(st, seat).length;
+  // Carrying more than anyone else may is the porter showing their card.
+  if (held > handLimit(st) && st.seats[seat].trade === "porter") st.seats[seat].tradeRevealed = true;
+  if (held > limitFor(st, seat) && !st.pending.includes(seat)) st.pending.push(seat);
 }
 // Called at the end of every turn: if anyone is over the limit, they give
 // first, and the turn passes when they are done.
@@ -996,6 +1088,7 @@ export function legalActions(st, seat) {
       } else if (t.step === "codebook") { push({ type: "codebook", swap: false }); push({ type: "codebook", swap: true }); }
       else if (t.step === "coat") { push({ type: "coat", trade: null }); for (const tr of st.spareTrades) push({ type: "coat", trade: tr }); }
       else if (t.step === "direction") { push({ type: "direction", dir: "left" }); push({ type: "direction", dir: "right" }); }
+      else if (t.step === "disguise") { push({ type: "disguise", lie: false }); if (hasPower(st, seat, "double")) push({ type: "disguise", lie: true }); }
       else if (t.step === "passItems") for (const item of hand(st, seat)) push({ type: "passItem", item });
       break;
     }
@@ -1025,6 +1118,15 @@ export function legalActions(st, seat) {
           }
           break;
         }
+        case "yield": for (const item of hand(st, seat)) push({ type: "yieldItem", item }); break;
+        case "bribe":
+          push({ type: "bribe", pay: false });
+          if (holdsKind(st, seat, "gold_bar")) push({ type: "bribe", pay: true });
+          break;
+        case "disguise":
+          push({ type: "disguise", lie: false });
+          if (hasPower(st, seat, "double")) push({ type: "disguise", lie: true });
+          break;
         case "choice": {
           const loser = f.winner === f.attacker ? f.defender : f.attacker;
           push({ type: "choice", take: false });
@@ -1081,7 +1183,7 @@ export function view(st, seat = null) {
       next: f.next, support: { ...f.support }, gunman: f.gunman, hypnotized: f.hypnotized, priest: f.priest, doctor: f.doctor,
       shown: Object.fromEntries(Object.entries(f.shown).map(([s, x]) => [s, { items: kinds(st, x.items), trade: x.trade }])),
       pharmacist: f.pharmacist ? f.pharmacist.seat : null,
-      swords: f.swords, shields: f.shields, winner: f.winner, tie: f.tie, choice: f.choice,
+      swords: f.swords, shields: f.shields, winner: f.winner, tie: f.tie, choice: f.choice, dice: f.dice || null,
       loserHand: f.step === "take" && seat === f.winner ? items(st.seats[f.winner === f.attacker ? f.defender : f.attacker].items) : null,
     } : null,
     peek: st.phase === "peek" && seat === st.turn ? items(st.pile.slice().reverse()) : null,

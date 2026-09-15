@@ -7,6 +7,7 @@
 import * as E from "../public/shared/engine.js";
 import * as B from "../public/shared/bots.js";
 
+const DLC = process.argv.includes("--dlc"); // the expansion cards switched on
 const GAMES = Number(process.argv[2] || 120);
 const ONLY = Number(process.argv[3] || 0);
 const LEVELS = ["easy", "normal", "hard"];
@@ -31,8 +32,8 @@ function checkInvariants(st, before, action, ctx) {
   const expected = Object.keys(st.items).length;
   if (set.size !== expected) problem(`item count ${set.size} != ${expected}`, { ...ctx, action, phase: st.phase, step: st.scuffle?.step || st.trade?.step, missing: Object.keys(st.items).filter((id) => !set.has(id)) });
   if (st.phase === "turn") {
-    const lim = E.handLimit(st);
-    st.seats.forEach((sd, s) => { if (sd.items.length > lim) problem(`seat ${s} holds ${sd.items.length} > limit ${lim} on a turn`, { ...ctx, action }); });
+    st.seats.forEach((sd, s) => { const lim = E.limitFor(st, s); if (sd.items.length > lim) problem(`seat ${s} holds ${sd.items.length} > limit ${lim} on a turn`, { ...ctx, action }); });
+    st.seats.forEach((sd) => { if (sd.trade === "porter" && sd.items.length > E.handLimit(st)) bump("trade:porter.over"); });
   }
   st.seats.forEach((sd, s) => {
     const def = E.TRADE_BY_ID[sd.trade];
@@ -61,6 +62,7 @@ function tally(st, before, action) {
       if (e.doctored != null) { bump("trade:doctor"); continue; }
       if (e.gunman != null) bump("trade:gunman");
       if (e.hypnotized != null) bump("trade:hypnotist");
+      if (e.dice) bump("trade:gambler.dice");
       if (e.pharmacist != null) bump("trade:pharmacist");
       if (e.tie) bump(e.drew ? "scuffle:tie.drew" : "scuffle:tie.empty");
       else bump("scuffle:" + e.choice);
@@ -72,6 +74,8 @@ function tally(st, before, action) {
     }
   }
   if (action.type === "answer" && action.accept === false) bump("trade:refused");
+  if (action.type === "disguise" && action.lie) bump("trade:double.lie");
+  if (action.type === "yieldItem") bump("trade:porter.yield");
 }
 
 // legal-action probes: must-accept cards leave no refusal on the table
@@ -101,7 +105,7 @@ for (let n = 3; n <= 10; n++) {
     const seed = n * 1000003 + g * 7919;
     const rng = E.makeRng(seed);
     const smuggling = g % 5 === 0;
-    let st = E.createGame(rng.int(2 ** 31), n, { smuggling });
+    let st = E.createGame(rng.int(2 ** 31), n, { smuggling, dlc: DLC ? { gold: true, double: true, porter: true, gambler: true } : undefined });
     const levels = st.seats.map(() => LEVELS[rng.int(3)]);
     games++;
     let k = 0;
@@ -139,7 +143,8 @@ const expect = [
   "trade.fight:master", "trade.fight:thug", "trade.fight:bodyguard",
   "scuffle:take", "scuffle:peek", "scuffle:tie.drew", "support:attacker", "support:defender", "support:out",
   "declare:right", "declare:wrong", "end:minorityWon", "trade:refused", "trade:accepted",
-];
+  ...(DLC ? ["scuffle:bribe", "trade:double.lie", "trade:porter.over", "trade:porter.yield", "trade:gambler.dice"] : []),
+].filter((k) => !/gold_bar/.test(k)); // the bar is paid, never shown
 const missing = expect.filter((k) => !hit[k]);
 console.log(`${games} games, ${steps} actions, ${errors} engine errors, ${((Date.now() - t0) / 1000).toFixed(1)}s`);
 console.log("coverage:");
