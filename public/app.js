@@ -1103,6 +1103,7 @@ function route() {
   if (q.has("play")) {
     leaveRoom(true); game.mode = "solo";
     game.auto = q.get("auto") === "1";
+    if (game.auto && q.get("fast") === "1") for (const k of Object.keys(DELAY)) DELAY[k] = 40; // a self-playing game at speed, for checking screens
     if (game.auto && !game.st) { show("setup"); startGame(); return; }
     if (!game.st) show("setup"); else show("table");
     return;
