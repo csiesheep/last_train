@@ -125,7 +125,7 @@ const game = {
   me: 0, names: [], faces: [], level: "normal", rng: E.makeRng(E.randomSeed()), botTimer: null, netTimer: null,
   log: [], logSeen: 0, flashUntil: 0, auto: false,
   ws: null, code: null, lobby: null, closed: false, clock: null, gen: -1, deadline: 0,
-  ui: freshUi(), peekSeat: null, result: null,
+  ui: freshUi(), peekSeat: null, result: null, viewKey: "",
 };
 const curView = () => (game.mode === "solo" ? (game.st ? E.view(game.st, game.me) : null) : game.view);
 const curLegal = () => (game.mode === "solo" ? (game.st ? E.legalActions(game.st, game.me) : []) : game.legal);
@@ -300,6 +300,8 @@ function onMsg(m) {
     case "view": {
       if (!m.view) { game.view = null; game.legal = []; if (game.lobby) { show("lobby"); renderLobby(); } break; }
       if (m.gen !== game.gen) { game.gen = m.gen; game.log = game.log.filter((l) => l.room); game.logSeen = 0; game.ui = freshUi(); }
+      const key = `${m.view.phase}/${m.view.scuffle?.step || m.view.trade?.step || ""}/${m.view.turnNo}/${(m.view.waitingOn || []).join(",")}/${m.view.log.length}`;
+      if (key !== game.viewKey) { game.viewKey = key; game.ui = freshUi(); }
       game.view = m.view; game.legal = m.legal || []; game.names = m.names; game.faces = m.faces || []; game.me = m.me; game.deadline = m.deadline || 0;
       // the engine's public log becomes lines here, in this tab's language
       for (; game.logSeen < m.view.log.length; game.logSeen++) {
@@ -312,6 +314,7 @@ function onMsg(m) {
     }
     case "error":
       if (m.fatal) { leaveRoom(true); game.mode = "solo"; show("landing"); setStatus(m.key ? t("lobby.err." + m.key) : m.message, true); }
+      else if (game.view && !$("view-table").hidden) { addSys(m.key ? t("lobby.err." + m.key) : m.message, true); render(); }
       else setStatus(m.key ? t("lobby.err." + m.key) : m.message, true);
       break;
   }
