@@ -36,6 +36,8 @@ export function sayAction(action, view, ctx) {
       if (action.why === "help_ally") return say("helpAlly", {}, 0.5);
       if (action.why === "bad_deal") return say("badDeal", {}, 0.5);
       return null;
+    case "bribe": return action.pay ? say("bribe", {}, 0.7) : null;
+    case "yieldItem": return say("yield", {}, 0.4);
     default: return null;
   }
 }

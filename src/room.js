@@ -151,7 +151,7 @@ export class Room {
     if (!room) {
       if (!create) return reject("noRoom");
       this.room = {
-        code, phase: "lobby", seats: [], settings: { level: "normal", smuggling: false, lang },
+        code, phase: "lobby", seats: [], settings: { level: "normal", smuggling: false, dlc: false, lang },
         state: null, rngState: E.randomSeed(), gen: 0, deadline: 0, stepKey: "",
         log: [], alarmAt: 0, idle: false, lastActive: Date.now(),
       };
@@ -223,6 +223,7 @@ export class Room {
         if (!isHost || room.phase !== "lobby") return;
         if (B.LEVELS.includes(m.level)) room.settings.level = m.level;
         if (typeof m.smuggling === "boolean") room.settings.smuggling = m.smuggling;
+        if (typeof m.dlc === "boolean") room.settings.dlc = m.dlc;
         this.pushLobby(); break;
       case "addBot":
         if (!isHost || room.phase !== "lobby" || room.seats.length >= MAX_SEATS) return;
@@ -303,7 +304,8 @@ export class Room {
   // ---------- game flow ----------
   async startGame() {
     const room = this.room;
-    room.state = E.createGame(E.randomSeed(), room.seats.length, { smuggling: !!room.settings.smuggling });
+    room.state = E.createGame(E.randomSeed(), room.seats.length, { smuggling: !!room.settings.smuggling,
+      dlc: room.settings.dlc ? Object.fromEntries(E.EXPANSIONS.map((k) => [k, true])) : undefined });
     room.phase = "game"; room.gen++; room.stepKey = ""; room.log = [];
     for (const s of room.seats) s.ready = false;
     this.pushLobby();

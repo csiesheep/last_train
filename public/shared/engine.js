@@ -1160,7 +1160,7 @@ export function view(st, seat = null) {
     spareTrades: st.spareTrades.length,
     ready: st.ready.slice(),
     me: me ? { gang: me.gang, trade: me.trade, tradeUsed: me.tradeUsed, tradeRevealed: me.tradeRevealed, items: items(me.items), drink: me.drink,
-      minority: null } : null,
+      limit: limitFor(st, seat), minority: null } : null,
     seats: st.seats.map((sd, i) => ({
       items: sd.items.length,
       trade: sd.tradeRevealed || showAll ? sd.trade : null,
@@ -1173,7 +1173,7 @@ export function view(st, seat = null) {
     minority: showAll ? st.minority : null,
     knowledge: seat === null ? [] : clone(st.knowledge[seat]),
     trade: t ? {
-      from: t.from, to: t.to, step: t.step, forced: !!t.forced, actor: t.actor, dir: t.dir,
+      from: t.from, to: t.to, step: t.step, forced: !!t.forced, actor: t.actor, dir: t.dir, looker: t.looker ?? null,
       offered: t.offered && (seat === t.from || seat === t.to) ? { id: t.offered, kind: st.items[t.offered] } : null,
       wanted: t.wanted && (seat === t.from || seat === t.to) ? { id: t.wanted, kind: st.items[t.wanted] } : null,
       passes: t.passes ? Object.fromEntries(Object.keys(t.passes).map((s) => [s, t.passes[s] !== null])) : null,
@@ -1183,8 +1183,8 @@ export function view(st, seat = null) {
       next: f.next, support: { ...f.support }, gunman: f.gunman, hypnotized: f.hypnotized, priest: f.priest, doctor: f.doctor,
       shown: Object.fromEntries(Object.entries(f.shown).map(([s, x]) => [s, { items: kinds(st, x.items), trade: x.trade }])),
       pharmacist: f.pharmacist ? f.pharmacist.seat : null,
-      swords: f.swords, shields: f.shields, winner: f.winner, tie: f.tie, choice: f.choice, dice: f.dice || null,
-      loserHand: f.step === "take" && seat === f.winner ? items(st.seats[f.winner === f.attacker ? f.defender : f.attacker].items) : null,
+      swords: f.swords, shields: f.shields, winner: f.winner, tie: f.tie, choice: f.choice, dice: f.dice || null, yielded: !!f.yielded,
+      loserHand: (f.step === "take" && seat === f.winner) || (f.step === "yield" && (seat === f.winner || seat === loserOf(f))) ? items(st.seats[loserOf(f)].items) : null,
     } : null,
     peek: st.phase === "peek" && seat === st.turn ? items(st.pile.slice().reverse()) : null,
     coatChoices: t && t.step === "coat" && seat === t.actor ? st.spareTrades.slice() : null,

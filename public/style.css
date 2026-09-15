@@ -235,6 +235,15 @@ td .row { gap: 4px; flex-wrap: wrap; }
 .shown .sh img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .shown .sh.atk { border-color: var(--rust); box-shadow: 0 0 8px rgba(184, 69, 47, 0.6); }
 .shown .sh.def { border-color: var(--steel); box-shadow: 0 0 8px rgba(111, 143, 184, 0.6); }
+.shown .sh { position: relative; }
+.shown .sh .roll { position: absolute; right: 0; bottom: 0; font-size: 9px; line-height: 11px; padding: 0 2px; background: var(--brass-hi); color: var(--deep); font-weight: 700; border-radius: 2px 0 0 0; }
+/* the expansion: its cards under the switch, and the double agent's choice */
+.dlccards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.dlccard { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 6px 2px 5px; border: 1px solid var(--line); border-radius: 2px; background: var(--deep); color: var(--bone); font-size: 11px; cursor: pointer; }
+.dlccard img { width: 44px; height: 44px; object-fit: cover; border-radius: 2px; display: block; }
+.gangpick { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 64px; padding: 8px 12px 8px 8px; border: 1px solid var(--line); border-radius: 2px; background: var(--deep); color: var(--bone); text-align: left; cursor: pointer; font: inherit; }
+.gangpick img { width: 84px; height: 48px; object-fit: contain; flex-shrink: 0; }
+.gangpick.brass { border-color: var(--brass-hi); background: rgba(168, 134, 58, 0.1); }
 /* the passenger sheet */
 .face.lg2 { width: 56px; height: 56px; }
 .thumb56 { width: 56px; height: 56px; border-radius: 3px; border: 1px solid var(--line); object-fit: cover; display: block; }

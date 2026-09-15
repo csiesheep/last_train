@@ -16,6 +16,7 @@ export default {
     easy: "Easy", normal: "Normal", hard: "Hard", smuggling: "Smuggling", smugglingHint: "A traded card's text fires only if the giver reads it out.",
     hint: "Even counts are the most balanced; at odd counts the smaller gang gets a strong drink each.",
     start: "Depart", defaultName: "You", face: "Your face",
+    dlc: "Expansion: the train crew", dlcHint: "Adds a gold bar to the deck and three trades to the shuffle: Double Agent, Porter, Gambler.",
   },
   gang: { timekeepers: "the Clocktower Society", sealbearers: "the Seal Society", timekeepersLat: "鐘樓會", sealbearersLat: "印信社" },
   goal: { timekeepers: "three pocket watches", sealbearers: "three jade seals" },
@@ -28,6 +29,7 @@ export default {
   trades: {
     diplomat: "Diplomat", doctor: "Doctor", gunman: "Gunman", pharmacist: "Pharmacist", master: "Master",
     fortune_teller: "Fortune Teller", hypnotist: "Hypnotist", bodyguard: "Bodyguard", priest: "Priest", thug: "Thug",
+    double: "Double Agent", porter: "Porter", gambler: "Gambler",
   },
   tradeText: {
     diplomat: "Once a game, on your turn: name a passenger and a kind of item. If they have it they must trade it to you. If not, they show you their bags and your turn ends.",
@@ -40,12 +42,15 @@ export default {
     bodyguard: "Whoever you back gets +1.",
     priest: "Once a game, before anyone declares: stop a scuffle. If the attacker holds two or more items, they give you one.",
     thug: "As attacker, +1.",
+    double: "Once a game: when someone looks at your gang card (a monocle, or a scuffle winner's look), you may show them the other gang; the trade they see is a different one from the box.",
+    porter: "Your bag limit is 2 higher. When a scuffle winner takes one of your bags, you choose which (and your trade is revealed).",
+    gambler: "As attacker or defender, after everyone has declared, toss a coin: +0 or +2.",
   },
   items: {
     watch: "pocket watch", seal: "jade seal", case_watch: "suitcase (watch)", case_seal: "suitcase (seal)",
     dagger: "dagger", gloves: "gloves", poison_ring: "poison ring", knives: "throwing knives", cane: "cane",
     codebook: "codebook", trench_coat: "trench coat", warrant: "search warrant", monocle: "monocle", timetable: "timetable",
-    black_letter: "poison-pen letter", broken_mirror: "broken mirror", first_class_ticket: "first-class ticket",
+    black_letter: "poison-pen letter", broken_mirror: "broken mirror", first_class_ticket: "first-class ticket", gold_bar: "gold bar",
   },
   itemText: {
     watch: "The Clocktower Society win with three.", seal: "The Seal Society win with three.",
@@ -59,6 +64,7 @@ export default {
     timetable: "When you trade it on, name a direction: everyone passes one bag that way at once.",
     black_letter: "Must be accepted in a trade. Its holder may not show their hand.", broken_mirror: "Must be accepted in a trade. The card you get for it has no effect.",
     first_class_ticket: "With this and any three watches or seals in your own bag, leave the train alone: a solo win.",
+    gold_bar: "When you lose a scuffle, you may hand the gold bar to the winner instead: they take it and may neither look nor take anything else.",
   },
   table: {
     stop: "Stop {n}", pile: "pile {n}", limit: "limit {n}", you: "you", bags: "{n} bags", turnOf: "{name}'s turn", yourTurn: "Your turn",
@@ -88,7 +94,10 @@ export default {
     declareGo: "Those are the ones. Show it", declareNone: "You need one of your own gang's items first.", declareBlocked: "The poison-pen letter's holder may not show their hand.",
     solo: "Show the first-class ticket and leave alone", again: "Board again", lobby: "Back to the platform", continue: "Continue",
     tapHint: "tap one for its text", talk: "Carriage talk", talkRecent: "last {n}", win: "wins", log: "Journey log", logCount: "{stops} stops · {n} events", gotIt: "Got it",
-    res: { won: "{a} won", lost: "{a} lost", tie: "A tie", stopped: "Stopped", doctored: "Cancelled", peek: "{w} saw {l}'s gang and trade.", take: "{w} took a bag from {l}.", drew: "{a} draws from the pile.", seen: "You saw: {gang} · {trade}.", taken: "They took the {item}.", stoppedBy: "{p} stopped the scuffle.", doctoredBy: "{d} stepped in; it does not count." },
+    res: { won: "{a} won", lost: "{a} lost", tie: "A tie", stopped: "Stopped", doctored: "Cancelled", peek: "{w} saw {l}'s gang and trade.", take: "{w} took a bag from {l}.", drew: "{a} draws from the pile.", seen: "You saw: {gang} · {trade}.", taken: "They took the {item}.", stoppedBy: "{p} stopped the scuffle.", doctoredBy: "{d} stepped in; it does not count.", dice: "{name} (Gambler) tossed +{n}.", bribe: "{l} paid the gold bar: {w} neither looked nor took anything else.", yield: "{l} (Porter) chose the bag {w} took." },
+    bribeQ: "You lost. Pay the gold bar to be left alone?", bribeHint: "Pay: {w} takes the gold bar and may neither see your gang nor go through your bags. Keep it: they choose as usual.", bribeYes: "Pay the gold bar", bribeNo: "Keep it",
+    disguiseTrade: "{name} is looking at your gang card", disguiseScuffle: "{name} is looking at your gang and trade.", truth: "Show the truth", lie: "Let them see {gang}", disguiseHint: "Uses the Double Agent (once a game). The trade they see will be another one from the box.",
+    yieldQ: "{name} takes one of your bags. You are the Porter: pick which one.", yieldHint: "Choosing reveals your trade.", yieldPick: "Tap a bag first", yieldGo: "Hand over the {item}", yieldWait: "{name} is the Porter and picks the bag you get.",
     quick: ["I'm with {gang}", "Who has a {goal}?", "Don't fight", "Trade?"],
     knowledge: "What you know", known: { gang: "{name} is with {gang}", trade: "{name} is the {trade}", hand: "{name}'s bags: {items}" },
   },
@@ -113,6 +122,7 @@ export default {
     declare: "{name} shows their hand: {gang}. {result}", right: "All correct.", wrongGang: "Named the wrong person.", wrongCount: "Came up short.",
     solo: "{name} shows the first-class ticket and leaves alone.",
     dealt: "Cards dealt. {name} goes first.",
+    dice: "{name} (Gambler) tosses a coin: +{n}.", bribe: "{l} pays {w} the gold bar; nothing is seen or taken.", yield: "{l} (Porter) hands {w} a bag of their choosing.",
   },
   lobby: {
     room: "Compartment", code: "Code", copy: "Copy link", copied: "Copied", share: "Share", leave: "Leave",
@@ -152,5 +162,7 @@ export default {
     helpAlly: ["All right, this once."],
     won: ["Kind of you."], lost: ["Next stop, then."],
     wrongDeclared: ["...Oh no."],
+    bribe: ["Take it and ask no questions.", "That should settle it."],
+    yield: ["Have this one.", "This one, then."],
   },
 };

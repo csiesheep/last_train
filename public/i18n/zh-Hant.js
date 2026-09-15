@@ -16,6 +16,7 @@ export default {
     easy: "易", normal: "中", hard: "難", smuggling: "走私", smugglingHint: "換出去的物件效果，由給的人決定要不要唸出來。",
     hint: "雙數人數最均衡；單數時人少的一方每人多一杯烈酒。",
     start: "開車", defaultName: "你", face: "你的長相",
+    dlc: "擴充：車上人員", dlcHint: "牌堆加一件金條，行當多三個一起洗：雙面人、搬運工、賭徒。",
   },
   gang: { timekeepers: "鐘樓會", sealbearers: "印信社", timekeepersLat: "the Clocktower Society", sealbearersLat: "the Seal Society" },
   goal: { timekeepers: "三只懷錶", sealbearers: "三枚玉印" },
@@ -28,6 +29,7 @@ export default {
   trades: {
     diplomat: "外交官", doctor: "醫生", gunman: "槍手", pharmacist: "藥劑師", master: "武師",
     fortune_teller: "算命師", hypnotist: "催眠師", bodyguard: "保鏢", priest: "神父", thug: "打手",
+    double: "雙面人", porter: "搬運工", gambler: "賭徒",
   },
   tradeText: {
     diplomat: "一局一次：輪到你時，點名一人和一種物件，對方有就必須和你交換。沒有的話，讓你看他的行李，你的回合結束。",
@@ -40,12 +42,15 @@ export default {
     bodyguard: "你幫誰，誰就 +1。",
     priest: "一局一次：大家表態之前，攔下一場衝突。攻方若有兩件以上行李，要賠你一件。",
     thug: "身為攻方，攻 +1。",
+    double: "一局一次：有人要看你的幫會牌時（單片鏡、衝突勝方看牌），你可以讓他看到另一邊；他看到的行當也會是盒子裡的另一張。",
+    porter: "你的行李上限 +2。衝突輸了、贏家要拿你一件行李時，由你挑給哪一件（這時翻開行當）。",
+    gambler: "身為攻方或守方，大家表態之後擲硬幣：+0 或 +2。",
   },
   items: {
     watch: "懷錶", seal: "玉印", case_watch: "皮箱·錶", case_seal: "皮箱·印",
     dagger: "匕首", gloves: "皮手套", poison_ring: "毒戒", knives: "飛刀", cane: "手杖",
     codebook: "密碼本", trench_coat: "風衣", warrant: "搜查令", monocle: "單片鏡", timetable: "時刻表",
-    black_letter: "黑函", broken_mirror: "破鏡", first_class_ticket: "頭等票",
+    black_letter: "黑函", broken_mirror: "破鏡", first_class_ticket: "頭等票", gold_bar: "金條",
   },
   itemText: {
     watch: "鐘樓會集齊三只就贏。", seal: "印信社集齊三枚就贏。",
@@ -59,6 +64,7 @@ export default {
     timetable: "換出去時，指一個方向，所有人同時把一件行李傳給那邊的鄰座。",
     black_letter: "交換時不能拒收。持有者不能攤牌。", broken_mirror: "交換時不能拒收。換回來的那件不觸發效果。",
     first_class_ticket: "手上有它加任意三件懷錶或玉印，可以獨自下車。",
+    gold_bar: "你在衝突中輸了時，可以把金條交給贏家：他拿走金條，不能再看、也不能拿別的。",
   },
   table: {
     stop: "第{n}站", pile: "牌堆 {n}", limit: "上限 {n}", you: "你", bags: "行李 {n}", turnOf: "{name} 的回合", yourTurn: "輪到你",
@@ -88,7 +94,10 @@ export default {
     declareGo: "就是他們，攤牌", declareNone: "你手上得先有一件自己的。", declareBlocked: "持有黑函不能攤牌。",
     solo: "亮出頭等票，獨自下車", again: "再搭一班", lobby: "回月台", continue: "繼續",
     tapHint: "點一下看說明", talk: "車廂閒話", talkRecent: "最近 {n} 句", win: "贏", log: "行車紀錄", logCount: "{stops}站 · {n} 件事", gotIt: "知道了",
-    res: { won: "{a} 贏了", lost: "{a} 輸了", tie: "平手", stopped: "被攔下", doctored: "結果取消", peek: "{w} 看了 {l} 的幫會與行當。", take: "{w} 從 {l} 手上拿走一件。", drew: "{a} 從牌堆抽一張。", seen: "你看到：{gang} · {trade}。", taken: "被拿走的是 {item}。", stoppedBy: "{p} 攔下了這場衝突。", doctoredBy: "{d} 出手，結果不算數。" },
+    res: { won: "{a} 贏了", lost: "{a} 輸了", tie: "平手", stopped: "被攔下", doctored: "結果取消", peek: "{w} 看了 {l} 的幫會與行當。", take: "{w} 從 {l} 手上拿走一件。", drew: "{a} 從牌堆抽一張。", seen: "你看到：{gang} · {trade}。", taken: "被拿走的是 {item}。", stoppedBy: "{p} 攔下了這場衝突。", doctoredBy: "{d} 出手，結果不算數。", dice: "{name}（賭徒）擲出 +{n}。", bribe: "{l} 交出金條消災：{w} 沒看牌，也沒拿別的。", yield: "{l}（搬運工）挑了一件給 {w}。" },
+    bribeQ: "你輸了。要交出金條消災嗎？", bribeHint: "交出去：{w} 拿走金條，不能看你的幫會，也不能翻你的行李。不交：照常由他選看或拿。", bribeYes: "交出金條", bribeNo: "不交",
+    disguiseTrade: "{name} 要看你的幫會牌", disguiseScuffle: "{name} 要看你的幫會與行當。", truth: "給他看真的", lie: "讓他看到{gang}", disguiseHint: "用掉雙面人（一局一次）。他看到的行當會是盒子裡的另一張。",
+    yieldQ: "{name} 要拿你一件行李。你是搬運工，挑一件給他：", yieldHint: "挑的時候行當會翻開。", yieldPick: "先點一件行李", yieldGo: "給 {item}", yieldWait: "{name} 是搬運工，由他挑一件給你。",
     quick: ["我是{gang}的", "誰有{goal}？", "別動手", "交換嗎？"],
     knowledge: "你知道的", known: { gang: "{name} 是{gang}", trade: "{name} 是{trade}", hand: "{name} 的行李：{items}" },
   },
@@ -113,6 +122,7 @@ export default {
     declare: "{name} 攤牌：{gang}。{result}", right: "全對。", wrongGang: "點錯人了。", wrongCount: "算錯了。",
     solo: "{name} 亮出頭等票，獨自下車。",
     dealt: "牌發好了。{name} 先走。",
+    dice: "{name}（賭徒）擲硬幣：+{n}。", bribe: "{l} 交出金條，{w} 沒看也沒拿。", yield: "{l}（搬運工）挑了一件給 {w}。",
   },
   lobby: {
     room: "包廂", code: "車次", copy: "複製連結", copied: "已複製", share: "分享", leave: "下車",
@@ -152,5 +162,7 @@ export default {
     helpAlly: ["好，幫你這一次。"],
     won: ["承讓。"], lost: ["下一站再說。"],
     wrongDeclared: ["……糟了。"],
+    bribe: ["拿去，別多問。", "這個夠了吧。"],
+    yield: ["這件給你。", "就這件。"],
   },
 };

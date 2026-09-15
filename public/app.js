@@ -92,8 +92,10 @@ const setup = {
   level: store.get("lt.level", "normal"),
   name: store.get("lt.name", ""),
   smuggling: store.get("lt.smug", "0") === "1",
+  dlc: store.get("lt.dlc", "0") === "1",
   face: store.get("lt.face", ""),
 };
+const ALL_DLC = Object.fromEntries(E.EXPANSIONS.map((k) => [k, true]));
 if (!isFace(setup.face)) setup.face = FACE_IDS[Math.floor(Math.random() * FACE_IDS.length)];
 // Solo names come from the faces; the human's typed name, if any, wins for their seat.
 const soloNames = () => game.faces.map((f, i) => (i === game.me && setup.name ? setup.name : passengerName(f, lang)));
@@ -108,12 +110,15 @@ function renderSetup() {
   document.querySelectorAll("#levelSeg button").forEach((b) => b.classList.toggle("on", b.dataset.level === setup.level));
   $("nameInput").value = setup.name;
   $("smugChk").checked = setup.smuggling;
+  $("dlcChk").checked = setup.dlc;
+  dlcCards($("dlcCards"), setup.dlc);
 }
 $("pMinus").addEventListener("click", () => { setup.n = Math.max(E.MIN_PLAYERS, setup.n - 1); store.set("lt.n", setup.n); renderSetup(); });
 $("pPlus").addEventListener("click", () => { setup.n = Math.min(E.MAX_PLAYERS, setup.n + 1); store.set("lt.n", setup.n); renderSetup(); });
 document.querySelectorAll("#levelSeg button").forEach((b) => b.addEventListener("click", () => { setup.level = b.dataset.level; store.set("lt.level", setup.level); renderSetup(); }));
 $("nameInput").addEventListener("input", (e) => { setup.name = e.target.value.trim().slice(0, 16); store.set("lt.name", setup.name); });
 $("smugChk").addEventListener("change", (e) => { setup.smuggling = e.target.checked; store.set("lt.smug", setup.smuggling ? "1" : "0"); });
+$("dlcChk").addEventListener("change", (e) => { setup.dlc = e.target.checked; store.set("lt.dlc", setup.dlc ? "1" : "0"); renderSetup(); });
 $("btnStart").addEventListener("click", () => startGame());
 $("btnPlay").addEventListener("click", () => go("?play"));
 
@@ -136,14 +141,15 @@ const sess = {
 };
 function freshUi() { return { mode: null, item: null, kind: null, holders: {}, picks: [], showItems: new Set(), showTrade: false, winner: null, announce: true }; }
 const DELAY = { reveal: 150, turn: 1200, peek: 900, handLimit: 600, answer: 900, return: 700, codebook: 700, coat: 700, direction: 600, passItems: 400,
-  priest: 300, gunman: 300, doctor: 350, priestPay: 600, support: 550, hypnotist: 450, powers: 450, choice: 700, take: 600 };
+  priest: 300, gunman: 300, doctor: 350, priestPay: 600, support: 550, hypnotist: 450, powers: 450, choice: 700, take: 600,
+  bribe: 450, disguise: 450, yield: 700 };
 
 function startGame() {
   leaveRoom(true);
   game.mode = "solo"; game.view = null; game.legal = [];
   const n = setup.n;
   game.rng = E.makeRng(E.randomSeed());
-  game.st = E.createGame(E.randomSeed(), n, { smuggling: setup.smuggling });
+  game.st = E.createGame(E.randomSeed(), n, { smuggling: setup.smuggling, dlc: setup.dlc ? ALL_DLC : undefined });
   game.me = 0; game.level = setup.level;
   game.faces = [setup.face, ...freeFaces(game.rng, [setup.face], E.shuffle).slice(0, n - 1)];
   game.names = soloNames();
@@ -162,7 +168,11 @@ function autoAnswer(st, legal) {
     if (["priest", "gunman", "doctor"].includes(f.step)) return legal.some((a) => a.use) ? null : legal.find((a) => a.type === "window");
     if (f.step === "hypnotist") return legal.length === 1 ? legal[0] : null;
     if (f.step === "powers") return legal.length === 1 ? legal[0] : null;
+    // everyone who loses is asked about the gold bar, everyone looked at about lying;
+    // without the card there is only one answer
+    if (f.step === "bribe" || f.step === "disguise") return legal.length === 1 ? legal[0] : null;
   }
+  if (st.phase === "trade" && st.trade && st.trade.step === "disguise") return legal.length === 1 ? legal[0] : null;
   return null;
 }
 function delayFor(st) {
@@ -324,7 +334,7 @@ function netAuto() {
   clearTimeout(game.netTimer);
   const v = game.view;
   if (!v || game.me === null || !v.waitingOn.includes(game.me)) return;
-  const fake = { phase: v.phase, scuffle: v.scuffle };
+  const fake = { phase: v.phase, scuffle: v.scuffle, trade: v.trade };
   const auto = autoAnswer(fake, game.legal);
   if (auto) game.netTimer = setTimeout(() => humanAct(auto), 250);
 }
@@ -370,6 +380,8 @@ function renderLobby() {
   $("lbHost").hidden = !host || L.phase !== "lobby";
   document.querySelectorAll("#lbLevel button").forEach((b) => b.classList.toggle("on", b.dataset.level === L.settings.level));
   $("lbSmug").checked = !!L.settings.smuggling;
+  $("lbDlc").checked = !!L.settings.dlc;
+  dlcCards($("lbDlcCards"), !!L.settings.dlc);
   const me = L.seats.find((s) => s.idx === game.me);
   $("lbReady").hidden = host || !me || L.phase !== "lobby";
   $("lbReady").textContent = me && me.ready ? t("lobby.notReady") : t("lobby.ready");
@@ -398,6 +410,7 @@ $("lbReady").addEventListener("click", () => { const me = game.lobby?.seats.find
 $("lbStart").addEventListener("click", () => send({ type: "start" }));
 document.querySelectorAll("#lbLevel button").forEach((b) => b.addEventListener("click", () => send({ type: "settings", level: b.dataset.level })));
 $("lbSmug").addEventListener("change", (e) => send({ type: "settings", smuggling: e.target.checked }));
+$("lbDlc").addEventListener("change", (e) => send({ type: "settings", dlc: e.target.checked }));
 const chatSend = (inp) => { const text = inp.value.trim(); if (!text) return; send({ type: "chat", text }); inp.value = ""; };
 $("lbSend").addEventListener("click", () => chatSend($("lbChat")));
 $("lbChat").addEventListener("keydown", (e) => { if (e.key === "Enter") chatSend($("lbChat")); });
@@ -444,13 +457,14 @@ function describeParts(e, L, parts) {
         const what = [...(x.items || []).map(itemName), ...(x.trade ? [tradeName(x.trade)] : [])];
         if (what.length) parts.push(L("shown", { name: nameOf(Number(s)), what: what.join(lang === "en" ? ", " : "、") }) + (lang === "en" ? "." : "。"));
       }
+      if (e.dice) parts.push(L("dice", { name: nameOf(e.dice.seat), n: e.dice.roll }));
       if (e.doctored != null) { parts.push(L("doctored", { d: nameOf(e.doctored) })); return undefined; }
       parts.push(L("count", { swords: e.swords, shields: e.shields }));
       if (e.pharmacist != null) parts.push(L("pharm", { name: nameOf(e.pharmacist), w: nameOf(e.winner) }));
       if (e.tie) parts.push(L(e.drew ? "tie" : "drewNothing", { a: nameOf(e.attacker) }));
       else {
         const loser = e.winner === e.attacker ? e.defender : e.attacker;
-        parts.push(L(e.choice === "take" ? "take" : "peek", { w: nameOf(e.winner), l: nameOf(loser) }));
+        parts.push(L(e.choice === "bribe" ? "bribe" : e.yielded ? "yield" : e.choice === "take" ? "take" : "peek", { w: nameOf(e.winner), l: nameOf(loser) }));
       }
       return undefined;
     }
@@ -473,7 +487,7 @@ let handPick = null; // { ids: Set, on: (id) => void, dim: bool }
 function frozen(v, e) {
   const counted = e.swords != null;
   return { ...v, phase: "scuffle", scuffle: { step: counted ? "take" : "priest", attacker: e.attacker, defender: e.defender, support: e.support || {}, shown: e.shown || {},
-    swords: e.swords, shields: e.shields, winner: e.winner, tie: !!e.tie, hypnotized: null, next: null } };
+    swords: e.swords, shields: e.shields, winner: e.winner, tie: !!e.tie, dice: e.dice || null, hypnotized: null, next: null } };
 }
 function render() {
   const live = curView();
@@ -544,11 +558,11 @@ function renderSeats(v, legal) {
   const box = $("seats");
   const targets = seatPickTargets(v, legal);
   const f = v.scuffle;
-  const sig = JSON.stringify([lang, v.n, game.me, v.phase, v.turn, v.turnNo, v.winner, f && [f.step, f.attacker, f.defender, f.support, f.shown, f.swords, f.shields, f.winner, f.tie, f.hypnotized], v.seats.map((sd) => [sd.items, sd.trade, sd.tradeUsed, sd.drink, sd.gang]), targets, game.faces, game.names]);
+  const sig = JSON.stringify([lang, v.n, game.me, v.phase, v.turn, v.turnNo, v.winner, f && [f.step, f.attacker, f.defender, f.support, f.shown, f.swords, f.shields, f.winner, f.tie, f.hypnotized, f.dice], v.seats.map((sd) => [sd.items, sd.trade, sd.tradeUsed, sd.drink, sd.gang]), targets, game.faces, game.names]);
   if (box.dataset.sig === sig) return;
   box.dataset.sig = sig;
   clear(box);
-  const counted = !!f && ["doctor", "choice", "take"].includes(f.step);
+  const counted = !!f && COUNTED.includes(f.step);
   const tally = (side) => 1 + Object.values(f.support).filter((x) => x === side).length;
   const sw = f ? (counted ? f.swords : tally("attacker")) : 0, sh = f ? (counted ? f.shields : tally("defender")) : 0;
   const n = v.n, me0 = game.me ?? 0;
@@ -587,7 +601,7 @@ function renderSeats(v, legal) {
       }
     }
     // what they showed in this scuffle, beside the face on the outer side
-    const shown = f && f.shown[s] ? shownThumbs(f.shown[s], s, role) : null;
+    const shown = f && f.shown[s] ? shownThumbs(f.shown[s], s, role, f.dice && f.dice.seat === s ? f.dice.roll : null) : null;
     const face = ringFace(s);
     face.style.width = face.style.height = (big ? size[1] : size[0]) + "px";
     const you = me ? (lang === "en" ? ` (${t("table.you")})` : `（${t("table.you")}）`) : "";
@@ -600,13 +614,15 @@ function renderSeats(v, legal) {
 }
 // Thumbnails of what a passenger showed in the scuffle: red for an attack bonus,
 // blue for a defence bonus, grey for anything else. Tapping one opens its text.
-function shownThumbs(x, seat, role) {
+// The gambler's thumbnail also carries what the coin gave.
+function shownThumbs(x, seat, role, roll = null) {
   const wrap = h("span", { class: "shown" });
   const sideCls = role === "a" || role === "a-sup" ? "atk" : role === "d" || role === "d-sup" ? "def" : "";
   const itemCls = (kind) => { const fx = (E.ITEM_BY_KIND[kind] || {}).fight || ""; return fx.includes("attack") ? "atk" : fx.includes("defend") ? "def" : ""; };
-  const tradeCls = (tr) => tr === "thug" ? "atk" : tr === "master" ? "def" : tr === "bodyguard" ? sideCls : "";
+  const tradeCls = (tr) => tr === "thug" ? "atk" : tr === "master" ? "def" : tr === "bodyguard" || tr === "gambler" ? sideCls : "";
   for (const kind of x.items) wrap.append(h("button", { type: "button", class: "sh " + itemCls(kind), title: itemName(kind), onclick: (e) => { e.stopPropagation(); openItemSheet(kind); } }, itemImg(kind)));
-  if (x.trade) wrap.append(h("button", { type: "button", class: "sh " + tradeCls(x.trade), title: tradeName(x.trade), onclick: (e) => { e.stopPropagation(); openTradeSheet(x.trade, seat); } }, tradeImg(x.trade)));
+  if (x.trade) wrap.append(h("button", { type: "button", class: "sh " + tradeCls(x.trade), title: tradeName(x.trade), onclick: (e) => { e.stopPropagation(); openTradeSheet(x.trade, seat); } },
+    tradeImg(x.trade), roll != null && x.trade === "gambler" ? h("b", { class: "roll" }, "+" + roll) : null));
   return wrap;
 }
 // Everything this seat knows about another passenger's hand, replayed from the
@@ -626,6 +642,8 @@ function whatIKnow(v, seat) {
       if (e.type === "demand" && e.had && (e.seat === seat || e.target === seat) && e.seat !== game.me && e.target !== game.me) forget();
       if (e.type === "scuffle" && e.choice === "take" && e.winner !== game.me) { const loser = e.winner === e.attacker ? e.defender : e.attacker; if (loser === seat && loser !== game.me) forget(); }
       if (e.type === "scuffle" && e.paid && e.attacker === seat && e.stopped !== game.me && e.attacker !== game.me) forget();
+      // a paid gold bar is public, and there is only one
+      if (e.type === "scuffle" && e.choice === "bribe") { const loser = e.winner === e.attacker ? e.defender : e.attacker; if (loser === seat) delete known.gold_bar; if (e.winner === seat) known.gold_bar = "gold_bar"; }
       if (e.type === "gift" && e.from === seat && e.to !== game.me && e.from !== game.me) forget();
       if (e.type === "timetable") forget();
     } else {
@@ -716,7 +734,7 @@ function renderHand(v) {
   const box = clear($("hand"));
   if (v.phase === "reveal" || !v.me) return;
   const mine = v.me.items;
-  box.append(h("span", { class: "lab" }, t("table.yourBag", { n: mine.length, max: v.handLimit }) + (handPick || !mine.length ? "" : " · " + t("table.tapHint"))));
+  box.append(h("span", { class: "lab" }, t("table.yourBag", { n: mine.length, max: v.me.limit ?? v.handLimit }) + (handPick || !mine.length ? "" : " · " + t("table.tapHint"))));
   const row = h("div", { class: "hand" });
   for (const it of mine) {
     const pickable = handPick && handPick.ids.has(it.id);
@@ -783,6 +801,7 @@ function renderJourney() {
     const tags = [];
     for (const a of e.announced || []) tags.push(thumb(a.kind, () => openItemSheet(a.kind)));
     if (e.kind) tags.push(thumb(e.kind, () => openItemSheet(e.kind)));
+    if (e.choice === "bribe") tags.push(thumb("gold_bar", () => openItemSheet("gold_bar")));
     for (const [sid, x] of Object.entries(e.shown || {})) {
       const side = Number(sid) === e.attacker || e.support?.[sid] === "attacker" ? "atk" : Number(sid) === e.defender || e.support?.[sid] === "defender" ? "def" : "";
       for (const k of x.items || []) { const b = thumb(k, () => openItemSheet(k)); b.firstChild.classList.add(side); tags.push(b); }
@@ -801,6 +820,31 @@ function waiting(v) {
   return h("p", { class: "hint" }, who.length === 1 ? t("table.waitingOne", { name: nameOf(who[0]) }) : t("table.waiting", { names: nameList(who) }));
 }
 const itemCard = (it, big = false) => pic(it.kind, { cls: big ? " big" : "", onclick: () => openItemSheet(it.kind) });
+// Scuffle steps whose count is settled, so the table shows it.
+const COUNTED = ["doctor", "bribe", "choice", "disguise", "take", "yield"];
+
+// The expansion's four cards, under its switch while it is on.
+const DLC_CARDS = [["item", "gold_bar"], ["trade", "double"], ["trade", "porter"], ["trade", "gambler"]];
+function dlcCards(box, on) {
+  clear(box);
+  box.hidden = !on;
+  if (!on) return;
+  for (const [what, id] of DLC_CARDS) {
+    box.append(h("button", { type: "button", class: "dlccard", onclick: () => (what === "item" ? openItemSheet(id) : openTradeSheet(id)) },
+      what === "item" ? itemImg(id) : tradeImg(id), h("span", {}, what === "item" ? itemName(id) : tradeName(id))));
+  }
+}
+// The double agent's moment: what the one looking gets to see. Only the
+// double agent is offered the lie; everyone else is answered for.
+function disguiseChoices(v, legal) {
+  const gang = v.me.gang, other = E.other(gang);
+  const truth = legal.find((a) => !a.lie), lie = legal.find((a) => a.lie);
+  const choice = (g, label, hint, cls, act) => h("button", { type: "button", class: "gangpick " + cls, onclick: () => humanAct(act) },
+    h("img", { src: "art/gang_" + E.GOAL[g] + ".jpg", alt: "" }), h("span", { class: "stack", style: "gap:0" }, h("b", {}, label), h("span", { class: "hint" }, hint)));
+  return h("div", { class: "stack" },
+    choice(gang, t("table.truth"), gangName(gang), "", truth),
+    lie ? choice(other, t("table.lie", { gang: gangName(other) }), t("table.disguiseHint"), "brass", lie) : null);
+}
 function renderPanel(v, legal) {
   const box = clear($("panel"));
   const p = h("div", { class: "panel" });
@@ -930,6 +974,8 @@ function renderPanel(v, legal) {
     } else if (tr.step === "direction" && tr.actor === me) {
       card.append(h("div", { class: "title disp" }, t("table.direction")));
       card.append(h("div", { class: "grid2" }, btn(t("table.left"), "", () => humanAct({ type: "direction", seat: me, dir: "left" })), btn(t("table.right"), "", () => humanAct({ type: "direction", seat: me, dir: "right" }))));
+    } else if (tr.step === "disguise" && tr.actor === me) {
+      card.append(h("div", { class: "title disp" }, t("table.disguiseTrade", { name: nameOf(tr.looker) })), disguiseChoices(v, legal));
     } else if (tr.step === "passItems" && v.waitingOn.includes(me)) {
       handPick = { ids: new Set(legal.map((a) => a.item)), on: (id) => humanAct({ type: "passItem", seat: me, item: id }) };
       card.append(h("div", { class: "title disp" }, t("table.passItem")));
@@ -947,14 +993,18 @@ function renderPanel(v, legal) {
 function scuffleCard(v, legal) {
   const f = v.scuffle, me = game.me, ui = game.ui;
   const card = h("div", { class: "card fight" });
-  const counted = ["doctor", "choice", "take"].includes(f.step);
+  const counted = COUNTED.includes(f.step);
   const tally = (side) => 1 + Object.values(f.support).filter((x) => x === side).length;
   const sw = counted ? f.swords : tally("attacker"), sh = counted ? f.shields : tally("defender");
   const title = counted && f.tie ? t("table.tie", { name: nameOf(f.attacker) }) : counted && f.winner != null ? t("table.won", { name: nameOf(f.winner) })
     : f.defender === me ? t("table.attackOnYou", { a: nameOf(f.attacker) }) : f.attacker === me ? t("table.youAttack", { b: nameOf(f.defender) }) : t("table.attackOn", { a: nameOf(f.attacker), b: nameOf(f.defender) });
   card.append(h("div", { class: "title disp" }, h("span", {}, title)));
   const iAct = v.waitingOn.includes(me);
-  if (!iAct) { card.append(waiting(v)); return card; }
+  if (!iAct) {
+    if (f.step === "yield" && f.winner === me) card.append(h("p", { class: "small" }, t("table.yieldWait", { name: nameOf(f.winner === f.attacker ? f.defender : f.attacker) })));
+    card.append(waiting(v));
+    return card;
+  }
 
   switch (f.step) {
     case "priest": case "gunman": case "doctor": {
@@ -987,7 +1037,7 @@ function scuffleCard(v, legal) {
         card.append(h("label", { class: "opt" }, h("input", { type: "checkbox", checked: ui.showItems.has(id), onchange: (e) => { if (e.target.checked) ui.showItems.add(id); else ui.showItems.delete(id); } }), itemName(kindOf(v, id)), h("span", { class: "hint" }, t("itemText." + kindOf(v, id)))));
       }
       if (tradeOpt) {
-        card.append(h("label", { class: "opt" }, h("input", { type: "checkbox", checked: ui.showTrade, onchange: (e) => { ui.showTrade = e.target.checked; render(); } }), t("table.useTrade", { trade: tradeName(v.me.trade) })));
+        card.append(h("label", { class: "opt" }, h("input", { type: "checkbox", checked: ui.showTrade, onchange: (e) => { ui.showTrade = e.target.checked; render(); } }), t("table.useTrade", { trade: tradeName(v.me.trade) }), h("span", { class: "hint" }, t("tradeText." + v.me.trade))));
         if (v.me.trade === "pharmacist" && ui.showTrade) {
           card.append(h("p", { class: "hint" }, t("table.pharmWinner")));
           card.append(h("div", { class: "grid2" }, ...[f.attacker, f.defender].map((s) => h("button", { type: "button", class: "pill" + (ui.winner === s ? " on" : ""), onclick: () => { ui.winner = s; render(); } }, nameOf(s)))));
@@ -997,6 +1047,21 @@ function scuffleCard(v, legal) {
       card.append(btn(usable.length || tradeOpt ? t("table.count") : t("table.showNothing"), "p", () => humanAct({ type: "show", seat: me, items: [...ui.showItems], trade: ui.showTrade, winner: ui.winner }), needWinner));
       break;
     }
+    case "bribe": {
+      const pay = legal.find((a) => a.pay), keep = legal.find((a) => !a.pay);
+      card.append(h("p", {}, t("table.bribeQ")));
+      card.append(h("div", { class: "row", style: "align-items:flex-start;gap:12px" }, pic("gold_bar", { cls: " pick", onclick: () => openItemSheet("gold_bar") }), h("p", { class: "hint", style: "flex:1" }, t("table.bribeHint", { w: nameOf(f.winner) }))));
+      card.append(h("div", { class: "grid2" }, btn(t("table.bribeNo"), "ghost", () => humanAct(keep)), btn(t("table.bribeYes"), "p", () => humanAct(pay), !pay)));
+      break;
+    }
+    case "disguise":
+      card.append(h("p", {}, t("table.disguiseScuffle", { name: nameOf(f.winner) })), disguiseChoices(v, legal));
+      break;
+    case "yield":
+      handPick = { ids: new Set(legal.map((a) => a.item)), on: (id) => { ui.item = id; render(); } };
+      card.append(h("p", {}, t("table.yieldQ", { name: nameOf(f.winner) })), h("p", { class: "hint" }, t("table.yieldHint")));
+      card.append(btn(ui.item ? t("table.yieldGo", { item: itemName(kindOf(v, ui.item)) }) : t("table.yieldPick"), "p", () => humanAct({ type: "yieldItem", seat: me, item: ui.item }), !ui.item));
+      break;
     case "choice": {
       const loser = f.winner === f.attacker ? f.defender : f.attacker;
       const take = legal.find((a) => a.take);
@@ -1026,7 +1091,7 @@ function resultCard(v, e) {
   else if (e.tie) { title = t("table.res.tie"); lines.push(e.drew ? t("table.res.drew", { a: nameOf(a) }) : t("log.drewNothing")); }
   else {
     title = t(e.winner === a ? "table.res.won" : "table.res.lost", { a: nameOf(a) });
-    lines.push(t(e.choice === "take" ? "table.res.take" : "table.res.peek", { w: nameOf(e.winner), l: nameOf(loser) }));
+    lines.push(t(e.choice === "bribe" ? "table.res.bribe" : e.yielded ? "table.res.yield" : e.choice === "take" ? "table.res.take" : "table.res.peek", { w: nameOf(e.winner), l: nameOf(loser) }));
     if (e.winner === game.me && e.choice !== "take") {
       const gang = (v.knowledge.filter((k) => k.k === "gang" && k.seat === loser).pop() || {}).gang;
       const trade = (v.knowledge.filter((k) => k.k === "trade" && k.seat === loser).pop() || {}).trade;
@@ -1037,6 +1102,7 @@ function resultCard(v, e) {
       if (lost) lines.push(t("table.res.taken", { item: itemName(lost.kind) }));
     }
   }
+  if (e.dice && e.stopped == null) lines.unshift(t("table.res.dice", { name: nameOf(e.dice.seat), n: e.dice.roll }));
   const count = e.stopped == null && e.doctored == null ? h("span", { class: "hint nowrap" }, t("log.count", { swords: e.swords, shields: e.shields }).replace(/[。.]$/, "")) : null;
   card.append(h("div", { class: "title disp" }, h("span", {}, title), count));
   for (const l of lines) card.append(h("p", { class: "small" }, l));
