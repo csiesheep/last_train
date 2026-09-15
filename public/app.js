@@ -179,7 +179,7 @@ function tick() {
   render();
   const st = game.st;
   if (!st || st.phase === "over") return;
-  if (game.result) return; // the carriage holds until the result is read
+  if (game.result && !game.auto) return; // the carriage holds until the result is read (not when the seat plays itself)
   const who = E.mustAct(st);
   if (!who.length) return;
   if (who.includes(game.me) && !game.auto) {
@@ -229,7 +229,7 @@ function afterStep() {
   for (; game.logSeen < st.log.length; game.logSeen++) {
     const e = st.log[game.logSeen];
     addSys(describe(e), e.type === "scuffle" || e.type === "declare" || e.type === "solo");
-    if (e.type === "scuffle") game.result = e;
+    if (e.type === "scuffle" && !game.auto) game.result = e;
     if (e.type === "scuffle" || e.type === "declare") game.flashUntil = Date.now() + 1500;
     for (let s = 0; s < st.n; s++) {
       if (s === game.me && !game.auto) continue;
