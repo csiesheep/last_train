@@ -71,6 +71,7 @@ export default {
     head: "車上出了事", dining: "餐車", customs: "海關驗關", boiler: "鍋爐加壓", password: "暗號", speaker: "車廂廣播", lights: "熄燈",
     diningSaw: "牌堆最上面是：{items}。", speakerSays: "牌堆裡還有 {w} 只懷錶、{s} 枚玉印，另有 {c} 只皮箱。",
     speakerSaysNo: "牌堆裡還有 {w} 只懷錶、{s} 枚玉印。",
+    deck: "牌疊十二張：這六張，加六張無事。第二站起每站抽一張，抽完重洗。", inDeck: "事件卡",
   },
   eventText: {
     dining: "牌堆頂兩張翻開給全車看，仍留在原位。", customs: "每人挑一件蓋著交給左鄰看過，原件還回。",

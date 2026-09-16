@@ -114,6 +114,7 @@ function renderSetup() {
   $("dlcChk").checked = setup.dlc;
   dlcCards($("dlcCards"), setup.dlc);
   $("evChk").checked = setup.events;
+  eventCards($("evCards"), setup.events);
 }
 $("pMinus").addEventListener("click", () => { setup.n = Math.max(E.MIN_PLAYERS, setup.n - 1); store.set("lt.n", setup.n); renderSetup(); });
 $("pPlus").addEventListener("click", () => { setup.n = Math.min(E.MAX_PLAYERS, setup.n + 1); store.set("lt.n", setup.n); renderSetup(); });
@@ -121,7 +122,7 @@ document.querySelectorAll("#levelSeg button").forEach((b) => b.addEventListener(
 $("nameInput").addEventListener("input", (e) => { setup.name = e.target.value.trim().slice(0, 16); store.set("lt.name", setup.name); });
 $("smugChk").addEventListener("change", (e) => { setup.smuggling = e.target.checked; store.set("lt.smug", setup.smuggling ? "1" : "0"); });
 $("dlcChk").addEventListener("change", (e) => { setup.dlc = e.target.checked; store.set("lt.dlc", setup.dlc ? "1" : "0"); renderSetup(); });
-$("evChk").addEventListener("change", (e) => { setup.events = e.target.checked; store.set("lt.ev", setup.events ? "1" : "0"); });
+$("evChk").addEventListener("change", (e) => { setup.events = e.target.checked; store.set("lt.ev", setup.events ? "1" : "0"); renderSetup(); });
 $("btnStart").addEventListener("click", () => startGame());
 $("btnPlay").addEventListener("click", () => go("?play"));
 
@@ -388,6 +389,7 @@ function renderLobby() {
   $("lbDlc").checked = !!L.settings.dlc;
   dlcCards($("lbDlcCards"), !!L.settings.dlc);
   $("lbEv").checked = !!L.settings.events;
+  eventCards($("lbEvCards"), !!L.settings.events);
   const me = L.seats.find((s) => s.idx === game.me);
   $("lbReady").hidden = host || !me || L.phase !== "lobby";
   $("lbReady").textContent = me && me.ready ? t("lobby.notReady") : t("lobby.ready");
@@ -870,6 +872,28 @@ function dlcCards(box, on) {
       what === "item" ? itemImg(id) : tradeImg(id), h("span", {}, what === "item" ? itemName(id) : tradeName(id))));
   }
 }
+// The six station events, under their switch while it is on; the deck is
+// those six and six blanks, which the line underneath says.
+function eventCards(box, on) {
+  clear(box);
+  box.hidden = !on;
+  if (!on) return;
+  for (const id of E.EVENTS) {
+    box.append(h("button", { type: "button", class: "dlccard", onclick: () => openEventSheet(id) },
+      eventImg(id), h("span", {}, t("events." + id))));
+  }
+  box.append(h("p", { class: "hint deckline" }, t("events.deck")));
+}
+function openEventSheet(id) {
+  openSheet(
+    h("div", { class: "row", style: "gap:14px;align-items:flex-start" }, eventImg(id, "art"),
+      h("div", { class: "stack", style: "gap:4px;flex:1;min-width:0" },
+        h("div", { class: "row between" }, h("span", { class: "disp ttl" }, t("events." + id)), h("span", { class: "tag" }, t("events.inDeck"))),
+        h("p", { class: "small" }, t("eventText." + id)))),
+    h("div", { class: "rule" }),
+    h("div", { class: "row between" }, h("span", { class: "hint" }, t("events.deck")), btn(t("sheet.close"), "ghost sm", closeSheet)));
+}
+
 // The double agent's moment: what the one looking gets to see. Only the
 // double agent is offered the lie; everyone else is answered for.
 function disguiseChoices(v, legal) {

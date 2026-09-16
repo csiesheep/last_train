@@ -241,6 +241,8 @@ td .row { gap: 4px; flex-wrap: wrap; }
 .dlccards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
 .dlccard { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 6px 2px 5px; border: 1px solid var(--line); border-radius: 2px; background: var(--deep); color: var(--bone); font-size: 11px; cursor: pointer; }
 .dlccard img { width: 44px; height: 44px; object-fit: cover; border-radius: 2px; display: block; }
+.evcards { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.evcards .deckline { grid-column: 1 / -1; margin: 0; }
 .gangpick { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 64px; padding: 8px 12px 8px 8px; border: 1px solid var(--line); border-radius: 2px; background: var(--deep); color: var(--bone); text-align: left; cursor: pointer; font: inherit; }
 .gangpick img { width: 84px; height: 48px; object-fit: contain; flex-shrink: 0; }
 .gangpick.brass { border-color: var(--brass-hi); background: rgba(168, 134, 58, 0.1); }

@@ -71,6 +71,7 @@ export default {
     head: "something happened", dining: "Dining car", customs: "Customs check", boiler: "Boiler up", password: "Passwords", speaker: "Announcement", lights: "Lights out",
     diningSaw: "On top of the pile: {items}.", speakerSays: "The pile still holds {w} watches and {s} seals, plus {c} suitcases.",
     speakerSaysNo: "The pile still holds {w} watches and {s} seals.",
+    deck: "Twelve cards: these six and six blanks. One is drawn each stop from the second on; the deck is reshuffled when it runs out.", inDeck: "event card",
   },
   eventText: {
     dining: "The top two cards of the pile are turned face up for everyone, and stay where they are.",
