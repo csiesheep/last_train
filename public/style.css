@@ -244,6 +244,12 @@ td .row { gap: 4px; flex-wrap: wrap; }
 .gangpick { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 64px; padding: 8px 12px 8px 8px; border: 1px solid var(--line); border-radius: 2px; background: var(--deep); color: var(--bone); text-align: left; cursor: pointer; font: inherit; }
 .gangpick img { width: 84px; height: 48px; object-fit: contain; flex-shrink: 0; }
 .gangpick.brass { border-color: var(--brass-hi); background: rgba(168, 134, 58, 0.1); }
+/* the card a station stop opens with */
+.card.ev { border-color: var(--brass-hi); display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; }
+.card.ev .evart { width: 100%; max-width: 240px; height: 140px; object-fit: cover; border: 1px solid var(--line); border-radius: 2px; }
+.card.ev .g2 { font-size: 28px; letter-spacing: 0.1em; }
+.card.ev .btn { width: 100%; margin-top: 4px; }
+.thumb.ev { border-color: var(--brass); }
 /* the passenger sheet */
 .face.lg2 { width: 56px; height: 56px; }
 .thumb56 { width: 56px; height: 56px; border-radius: 3px; border: 1px solid var(--line); object-fit: cover; display: block; }

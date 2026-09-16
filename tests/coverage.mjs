@@ -8,6 +8,7 @@ import * as E from "../public/shared/engine.js";
 import * as B from "../public/shared/bots.js";
 
 const DLC = process.argv.includes("--dlc"); // the expansion cards switched on
+const EV = process.argv.includes("--events"); // a card at every stop
 const GAMES = Number(process.argv[2] || 120);
 const ONLY = Number(process.argv[3] || 0);
 const LEVELS = ["easy", "normal", "hard"];
@@ -53,6 +54,8 @@ function tally(st, before, action) {
     if (e.type === "codebook") bump(e.swapped ? "item:codebook.swapped" : "item:codebook.kept");
     if (e.type === "coat") bump(e.changed ? "item:trench_coat.changed" : "item:trench_coat.kept");
     if (e.type === "timetable") bump("item:timetable");
+    if (e.type === "event" && !e.done) bump("event:" + (e.id || "none"));
+    if (e.type === "event" && e.done && e.id === "password") bump(e.seat != null ? "event:password.shown" : "event:password.tie");
     if (e.type === "demand") bump(e.had ? "trade:diplomat.had" : "trade:diplomat.none");
     if (e.type === "fortune") bump("trade:fortune_teller");
     if (e.type === "solo") bump("item:first_class_ticket.solo");
@@ -105,7 +108,7 @@ for (let n = 3; n <= 10; n++) {
     const seed = n * 1000003 + g * 7919;
     const rng = E.makeRng(seed);
     const smuggling = g % 5 === 0;
-    let st = E.createGame(rng.int(2 ** 31), n, { smuggling, dlc: DLC ? { gold: true, double: true, porter: true, gambler: true } : undefined });
+    let st = E.createGame(rng.int(2 ** 31), n, { smuggling, events: EV, dlc: DLC ? { gold: true, double: true, porter: true, gambler: true } : undefined });
     const levels = st.seats.map(() => LEVELS[rng.int(3)]);
     games++;
     let k = 0;
@@ -144,6 +147,7 @@ const expect = [
   "scuffle:take", "scuffle:peek", "scuffle:tie.drew", "support:attacker", "support:defender", "support:out",
   "declare:right", "declare:wrong", "end:minorityWon", "trade:refused", "trade:accepted",
   ...(DLC ? ["scuffle:bribe", "trade:double.lie", "trade:porter.over", "trade:porter.yield", "trade:gambler.dice"] : []),
+  ...(EV ? [...E.EVENTS.map((id) => "event:" + id), "event:none", "event:password.shown"] : []),
 ].filter((k) => !/gold_bar/.test(k)); // the bar is paid, never shown
 const missing = expect.filter((k) => !hit[k]);
 console.log(`${games} games, ${steps} actions, ${errors} engine errors, ${((Date.now() - t0) / 1000).toFixed(1)}s`);

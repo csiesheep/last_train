@@ -189,7 +189,7 @@ export function itemBelief(view, gang) {
     bel[id] = s > 0 ? normalize(p) : bel[id];
   };
 
-  const facts = view.knowledge.filter((k) => ["hand", "got", "lost", "gave", "offered", "pile"].includes(k.k));
+  const facts = view.knowledge.filter((k) => ["hand", "got", "lost", "gave", "offered", "pile", "seen", "top"].includes(k.k));
   const events = [
     ...view.log.map((e) => ({ t: e.t, o: 0, log: e })),
     ...facts.map((f) => ({ t: f.at, o: 1, fact: f })),
@@ -263,6 +263,8 @@ export function itemBelief(view, gang) {
         case "lost": pin(f.id, f.to); break;
         case "gave": pin(f.id, f.to); break;
         case "offered": pin(f.id, f.from); break;
+        case "seen": pin(f.id, f.seat); break;          // a bag shown at a station stop
+        case "top": for (const it of f.items) pin(it.id, PILE); break;
         case "pile": {
           const there = new Set(f.items.map((x) => x.id));
           for (const id of ids) { if (there.has(id)) pin(id, PILE); else notAt(id, PILE); }
@@ -430,6 +432,18 @@ export function decide(view, legal, level = "normal", rng = E.makeRng(E.randomSe
       const jitter = level === "easy" ? 1.5 : 0.35;
       const best = argmax(options, (o) => o.score + rng.next() * jitter);
       return { ...best.a, why: best.why };
+    }
+
+    case "event": {
+      const ev = view.ev;
+      if (ev && ev.step === "vote") {
+        // Point at whoever looks least like an ally and most likely to be sitting on my items.
+        const best = argmax(others, (s) => (1 - ally[s]) + pAtLeast(ctx.myItems, s, 1));
+        return { ...legal.find((a) => a.target === best) || pick(legal), why: "point" };
+      }
+      // Show the bag that gives least away.
+      const item = cheapest(legal.map((a) => a.item));
+      return { ...legal.find((a) => a.item === item) || pick(legal), why: "show_bag" };
     }
 
     case "peek": {

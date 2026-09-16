@@ -13,18 +13,21 @@ import { cpus } from "node:os";
 import { writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
+// Each configuration is the options object a game is created with.
 export const CONFIGS = {
   base: {},
-  gold: { gold: true },
-  double: { double: true },
-  porter: { porter: true },
-  gambler: { gambler: true },
-  all: { gold: true, double: true, porter: true, gambler: true },
+  gold: { dlc: { gold: true } },
+  double: { dlc: { double: true } },
+  porter: { dlc: { porter: true } },
+  gambler: { dlc: { gambler: true } },
+  all: { dlc: { gold: true, double: true, porter: true, gambler: true } },
+  events: { events: true },
+  everything: { events: true, dlc: { gold: true, double: true, porter: true, gambler: true } },
 };
 
-function playOne(seed, n, dlc) {
+function playOne(seed, n, options) {
   const rng = E.makeRng(seed);
-  let st = E.createGame(rng.int(2 ** 31), n, { dlc });
+  let st = E.createGame(rng.int(2 ** 31), n, options);
   const dealt = st.seats.map((sd) => sd.trade);
   const goldAt = (s) => s.seats.findIndex((sd) => sd.items.some((id) => s.items[id] === "gold_bar"));
   const goldStart = goldAt(st);

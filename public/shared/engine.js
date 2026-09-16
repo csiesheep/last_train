@@ -82,6 +82,12 @@ export const tradePool = (options) => TRADES.filter((t) => dlcOn(options, t.dlc)
 export const itemsInPlay = (n, options) => ITEMS.filter((it) => !(it.notAt || []).includes(n) && dlcOn(options, it.dlc));
 export const deckSize = (n, options) => itemsInPlay(n, options).reduce((s, it) => s + it.count, 0);
 
+// Station events: one card is drawn at the start of every stop but the first,
+// when the option is on. Half the deck is blank, so about half the stops pass
+// quietly; the deck is reshuffled once it runs out.
+export const EVENTS = ["dining", "customs", "boiler", "password", "speaker", "lights"];
+export const EVENT_DECK = [...EVENTS, ...EVENTS.map(() => null)];
+
 // ---------- seeded RNG (mulberry32), so a game replays from seed + actions ----------
 export function makeRng(seed) {
   let a = seed >>> 0;
@@ -161,9 +167,13 @@ export function createGame(seed, n, options = {}) {
     });
   }
 
+  // Drawn only when the option is on, so an ordinary game deals exactly as before.
+  const events = options.events ? shuffle(rng, EVENT_DECK) : [];
+
   return {
     seed, n,
-    options: { smuggling: !!options.smuggling, gunmanBonus: !!options.gunmanBonus,
+    events, ev: null, stop: { boiler: false, lights: false },
+    options: { smuggling: !!options.smuggling, gunmanBonus: !!options.gunmanBonus, events: !!options.events,
       dlc: Object.fromEntries(EXPANSIONS.filter((k) => options.dlc && options.dlc[k]).map((k) => [k, true])) },
     phase: "reveal",          // reveal | turn | peek | trade | scuffle | handLimit | over
     ready: new Array(n).fill(false),
@@ -259,6 +269,15 @@ export function mustAct(st) {
     case "turn": return [st.turn];
     case "peek": return [st.turn];
     case "handLimit": return st.pending.length ? [st.pending[0]] : [];
+    case "event": {
+      const ev = st.ev;
+      if (!ev) return [];
+      if (ev.step === "customs") return Object.keys(ev.picks).map(Number).filter((s) => ev.picks[s] === null);
+      if (ev.step === "vote") return Object.keys(ev.votes).map(Number).filter((s) => ev.votes[s] === null);
+      if (ev.step === "showBag" && ev.shower == null) return [];
+      if (ev.step === "showBag") return [ev.shower];
+      return [];
+    }
     case "trade": {
       const t = st.trade;
       if (t.step === "answer") return [t.to];
@@ -588,6 +607,7 @@ export function apply(prev, action) {
       if (f.step !== "choice" || seat !== f.winner) throw new Error("not your choice");
       const loser = f.winner === f.attacker ? f.defender : f.attacker;
       if (action.take) {
+        if (st.stop && st.stop.lights) throw new Error("the lights are out: a look is all there is");
         if (!hand(st, loser).length) throw new Error("the loser holds nothing to take");
         f.choice = "take";
         f.step = "take";
@@ -609,6 +629,35 @@ export function apply(prev, action) {
       learn(st, loser, { k: "lost", to: seat, id: action.item, kind: st.items[action.item] });
       f.taken = action.item;
       finishScuffle(st);
+      return st;
+    }
+
+    // ---- station events ----
+    case "customsPick": {
+      needPhase("event"); checkSeat(); needMine(action.item);
+      const ev = st.ev;
+      if (!ev || ev.step !== "customs" || !(seat in ev.picks) || ev.picks[seat] !== null) throw new Error("not showing a bag now");
+      ev.picks[seat] = action.item;
+      settleCustoms(st);
+      return st;
+    }
+    case "vote": {
+      needPhase("event"); checkSeat(); checkSeat(action.target);
+      const ev = st.ev;
+      if (!ev || ev.step !== "vote" || ev.votes[seat] !== null) throw new Error("not voting now");
+      if (action.target === seat) throw new Error("point at somebody else");
+      ev.votes[seat] = action.target;
+      settleVote(st);
+      return st;
+    }
+    case "showBag": {
+      needPhase("event"); checkSeat(); needMine(action.item);
+      const ev = st.ev;
+      if (!ev || ev.step !== "showBag" || seat !== ev.shower) throw new Error("not your bag to show");
+      for (let s = 0; s < st.n; s++) learn(st, s, { k: "seen", via: "password", seat, id: action.item, kind: st.items[action.item] });
+      log(st, { type: "event", id: "password", done: true, stop: Math.ceil(st.turnNo / st.n), seat, votes: ev.votes, kind: st.items[action.item] });
+      st.ev = null;
+      st.phase = "turn";
       return st;
     }
 
@@ -946,6 +995,7 @@ function count(st) {
     }
   }
   if (f.gunman !== null && st.options.gunmanBonus) { if (f.gunman === f.attacker) swords++; else shields++; }
+  if (st.stop && st.stop.boiler) swords++; // the boiler is up this stop
   f.swords = swords; f.shields = shields;
   if (f.pharmacist) { f.winner = f.pharmacist.winner; f.tie = false; }
   else if (swords > shields) f.winner = f.attacker;
@@ -1031,6 +1081,79 @@ function nextTurn(st) {
   st.turnNo += 1;
   st.phase = "turn";
   st.event = { type: "turn", seat: st.turn };
+  // A stop begins whenever the turn comes back round to where the deal started.
+  if (st.options.events && st.turnNo > st.n && (st.turnNo - 1) % st.n === 0) drawEvent(st);
+}
+
+// ---------- station events ----------
+// Drawn at the start of a stop: the last stop's flags lapse, and the card
+// either takes effect at once or opens a step everyone answers together.
+function drawEvent(st) {
+  st.stop = { boiler: false, lights: false };
+  if (!st.events.length) st.events = withRng(st, (rng) => shuffle(rng, EVENT_DECK));
+  const id = st.events.pop();
+  const entry = { type: "event", id, stop: Math.ceil(st.turnNo / st.n) };
+  if (id === "dining") {
+    const top = st.pile.slice(-2).reverse().map((x) => ({ id: x, kind: st.items[x] }));
+    for (let s = 0; s < st.n; s++) learn(st, s, { k: "top", items: top });
+    log(st, { ...entry, kinds: top.map((x) => x.kind) });
+    return;
+  }
+  if (id === "speaker") {
+    const inPile = (kind) => st.pile.filter((x) => st.items[x] === kind).length;
+    log(st, { ...entry, watches: inPile("watch"), seals: inPile("seal"), cases: st.pile.filter((x) => isCase(st.items[x])).length });
+    return;
+  }
+  if (id === "boiler" || id === "lights") { st.stop[id] = true; log(st, entry); return; }
+  if (id === "customs") {
+    const picks = {};
+    for (let s = 0; s < st.n; s++) if (hand(st, s).length) picks[s] = null;
+    log(st, entry);
+    if (!Object.keys(picks).length) return; // nobody has a bag to show
+    st.ev = { id, step: "customs", picks, votes: null, shower: null };
+    st.phase = "event";
+    return;
+  }
+  if (id === "password") {
+    const votes = {};
+    for (let s = 0; s < st.n; s++) votes[s] = null;
+    log(st, entry);
+    st.ev = { id, step: "vote", picks: null, votes, shower: null };
+    st.phase = "event";
+    return;
+  }
+  log(st, entry); // a quiet stop
+}
+// Everyone shows one bag to the seat on their left, and takes it back.
+function settleCustoms(st) {
+  const ev = st.ev;
+  if (Object.values(ev.picks).some((x) => x === null)) return;
+  for (const [s, id] of Object.entries(ev.picks)) {
+    const seat = Number(s);
+    learn(st, nextSeat(st, seat), { k: "seen", via: "customs", seat, id, kind: st.items[id] });
+  }
+  // The outcome is its own entry: a log line already read never changes later.
+  log(st, { type: "event", id: "customs", done: true, stop: Math.ceil(st.turnNo / st.n), shown: Object.keys(ev.picks).length });
+  st.ev = null;
+  st.phase = "turn";
+}
+// Everyone points at somebody; the one pointed at most shows a bag to the table.
+function settleVote(st) {
+  const ev = st.ev;
+  if (Object.values(ev.votes).some((x) => x === null)) return;
+  const tally = new Array(st.n).fill(0);
+  for (const v of Object.values(ev.votes)) tally[v]++;
+  const most = Math.max(...tally);
+  const top = tally.map((c, i) => (c === most ? i : -1)).filter((i) => i >= 0);
+  if (top.length !== 1 || !hand(st, top[0]).length) {
+    log(st, { type: "event", id: "password", done: true, stop: Math.ceil(st.turnNo / st.n), tie: true, votes: most });
+    st.ev = null;
+    st.phase = "turn";
+    return;
+  }
+  ev.votes = most;
+  ev.shower = top[0];
+  ev.step = "showBag";
 }
 function endGame(st, winner, reason, by) {
   st.phase = "over";
@@ -1074,6 +1197,14 @@ export function legalActions(st, seat) {
     }
     case "handLimit": {
       for (const to of allBut(st, [seat])) for (const item of hand(st, seat)) push({ type: "gift", item, to });
+      break;
+    }
+    case "event": {
+      const ev = st.ev;
+      if (!ev) break;
+      if (ev.step === "customs") for (const item of hand(st, seat)) push({ type: "customsPick", item });
+      if (ev.step === "vote") for (const target of allBut(st, [seat])) push({ type: "vote", target });
+      if (ev.step === "showBag") for (const item of hand(st, seat)) push({ type: "showBag", item });
       break;
     }
     case "trade": {
@@ -1130,7 +1261,7 @@ export function legalActions(st, seat) {
         case "choice": {
           const loser = f.winner === f.attacker ? f.defender : f.attacker;
           push({ type: "choice", take: false });
-          if (hand(st, loser).length) push({ type: "choice", take: true });
+          if (hand(st, loser).length && !(st.stop && st.stop.lights)) push({ type: "choice", take: true });
           break;
         }
         case "take": {
@@ -1186,6 +1317,10 @@ export function view(st, seat = null) {
       swords: f.swords, shields: f.shields, winner: f.winner, tie: f.tie, choice: f.choice, dice: f.dice || null, yielded: !!f.yielded,
       loserHand: (f.step === "take" && seat === f.winner) || (f.step === "yield" && (seat === f.winner || seat === loserOf(f))) ? items(st.seats[loserOf(f)].items) : null,
     } : null,
+    stop: { ...st.stop }, events: st.events.length,
+    ev: st.ev ? { id: st.ev.id, step: st.ev.step, shower: st.ev.shower,
+      picks: st.ev.picks ? Object.fromEntries(Object.keys(st.ev.picks).map((s) => [s, st.ev.picks[s] !== null])) : null,
+      votes: st.ev.votes ? Object.fromEntries(Object.keys(st.ev.votes).map((s) => [s, st.ev.votes[s] !== null])) : null } : null,
     peek: st.phase === "peek" && seat === st.turn ? items(st.pile.slice().reverse()) : null,
     coatChoices: t && t.step === "coat" && seat === t.actor ? st.spareTrades.slice() : null,
     pending: st.pending.slice(),

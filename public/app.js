@@ -93,6 +93,7 @@ const setup = {
   name: store.get("lt.name", ""),
   smuggling: store.get("lt.smug", "0") === "1",
   dlc: store.get("lt.dlc", "0") === "1",
+  events: store.get("lt.ev", "0") === "1",
   face: store.get("lt.face", ""),
 };
 const ALL_DLC = Object.fromEntries(E.EXPANSIONS.map((k) => [k, true]));
@@ -112,6 +113,7 @@ function renderSetup() {
   $("smugChk").checked = setup.smuggling;
   $("dlcChk").checked = setup.dlc;
   dlcCards($("dlcCards"), setup.dlc);
+  $("evChk").checked = setup.events;
 }
 $("pMinus").addEventListener("click", () => { setup.n = Math.max(E.MIN_PLAYERS, setup.n - 1); store.set("lt.n", setup.n); renderSetup(); });
 $("pPlus").addEventListener("click", () => { setup.n = Math.min(E.MAX_PLAYERS, setup.n + 1); store.set("lt.n", setup.n); renderSetup(); });
@@ -119,6 +121,7 @@ document.querySelectorAll("#levelSeg button").forEach((b) => b.addEventListener(
 $("nameInput").addEventListener("input", (e) => { setup.name = e.target.value.trim().slice(0, 16); store.set("lt.name", setup.name); });
 $("smugChk").addEventListener("change", (e) => { setup.smuggling = e.target.checked; store.set("lt.smug", setup.smuggling ? "1" : "0"); });
 $("dlcChk").addEventListener("change", (e) => { setup.dlc = e.target.checked; store.set("lt.dlc", setup.dlc ? "1" : "0"); renderSetup(); });
+$("evChk").addEventListener("change", (e) => { setup.events = e.target.checked; store.set("lt.ev", setup.events ? "1" : "0"); });
 $("btnStart").addEventListener("click", () => startGame());
 $("btnPlay").addEventListener("click", () => go("?play"));
 
@@ -130,7 +133,7 @@ const game = {
   me: 0, names: [], faces: [], level: "normal", rng: E.makeRng(E.randomSeed()), botTimer: null, netTimer: null,
   log: [], logSeen: 0, flashUntil: 0, auto: false,
   ws: null, code: null, lobby: null, closed: false, clock: null, gen: -1, deadline: 0,
-  ui: freshUi(), peekSeat: null, result: null, viewKey: "",
+  ui: freshUi(), peekSeat: null, result: null, evCard: null, seenCount: null, viewKey: "",
 };
 const curView = () => (game.mode === "solo" ? (game.st ? E.view(game.st, game.me) : null) : game.view);
 const curLegal = () => (game.mode === "solo" ? (game.st ? E.legalActions(game.st, game.me) : []) : game.legal);
@@ -142,18 +145,18 @@ const sess = {
 function freshUi() { return { mode: null, item: null, kind: null, holders: {}, picks: [], showItems: new Set(), showTrade: false, winner: null, announce: true }; }
 const DELAY = { reveal: 150, turn: 1200, peek: 900, handLimit: 600, answer: 900, return: 700, codebook: 700, coat: 700, direction: 600, passItems: 400,
   priest: 300, gunman: 300, doctor: 350, priestPay: 600, support: 550, hypnotist: 450, powers: 450, choice: 700, take: 600,
-  bribe: 450, disguise: 450, yield: 700 };
+  bribe: 450, disguise: 450, yield: 700, event: 500 };
 
 function startGame() {
   leaveRoom(true);
   game.mode = "solo"; game.view = null; game.legal = [];
   const n = setup.n;
   game.rng = E.makeRng(E.randomSeed());
-  game.st = E.createGame(E.randomSeed(), n, { smuggling: setup.smuggling, dlc: setup.dlc ? ALL_DLC : undefined });
+  game.st = E.createGame(E.randomSeed(), n, { smuggling: setup.smuggling, events: setup.events, dlc: setup.dlc ? ALL_DLC : undefined });
   game.me = 0; game.level = setup.level;
   game.faces = [setup.face, ...freeFaces(game.rng, [setup.face], E.shuffle).slice(0, n - 1)];
   game.names = soloNames();
-  game.log = []; game.logSeen = 0; game.flashUntil = 0; game.ui = freshUi(); game.result = null;
+  game.log = []; game.logSeen = 0; game.flashUntil = 0; game.ui = freshUi(); game.result = null; game.evCard = null; game.seenCount = null;
   clearTimeout(game.botTimer);
   show("table");
   tick();
@@ -189,7 +192,7 @@ function tick() {
   render();
   const st = game.st;
   if (!st || st.phase === "over") return;
-  if (game.result && !game.auto) return; // the carriage holds until the result is read (not when the seat plays itself)
+  if ((game.result || game.evCard) && !game.auto) return; // the carriage holds until the result, or the stop's event, is read
   const who = E.mustAct(st);
   if (!who.length) return;
   if (who.includes(game.me) && !game.auto) {
@@ -240,6 +243,7 @@ function afterStep() {
     const e = st.log[game.logSeen];
     addSys(describe(e), e.type === "scuffle" || e.type === "declare" || e.type === "solo");
     if (e.type === "scuffle" && !game.auto) game.result = e;
+    if (e.type === "event" && e.id && !e.done && !game.auto) game.evCard = e;
     if (e.type === "scuffle" || e.type === "declare") game.flashUntil = Date.now() + 1500;
     for (let s = 0; s < st.n; s++) {
       if (s === game.me && !game.auto) continue;
@@ -309,7 +313,7 @@ function onMsg(m) {
       renderLog(); renderLobbyLog(); break;
     case "view": {
       if (!m.view) { game.view = null; game.legal = []; if (game.lobby) { show("lobby"); renderLobby(); } break; }
-      if (m.gen !== game.gen) { game.gen = m.gen; game.log = game.log.filter((l) => l.room); game.logSeen = 0; game.ui = freshUi(); }
+      if (m.gen !== game.gen) { game.gen = m.gen; game.log = game.log.filter((l) => l.room); game.logSeen = 0; game.ui = freshUi(); game.evCard = null; game.seenCount = null; }
       const key = `${m.view.phase}/${m.view.scuffle?.step || m.view.trade?.step || ""}/${m.view.turnNo}/${(m.view.waitingOn || []).join(",")}/${m.view.log.length}`;
       if (key !== game.viewKey) { game.viewKey = key; game.ui = freshUi(); }
       game.view = m.view; game.legal = m.legal || []; game.names = m.names; game.faces = m.faces || []; game.me = m.me; game.deadline = m.deadline || 0;
@@ -318,6 +322,7 @@ function onMsg(m) {
         const e = m.view.log[game.logSeen];
         game.log.push({ seat: null, text: describe(e), hot: e.type === "scuffle" || e.type === "declare" || e.type === "solo" });
         if (e.type === "scuffle") game.result = e;
+        if (e.type === "event" && e.id && !e.done) game.evCard = e;
       }
       show("table"); render(); startClock(); netAuto();
       break;
@@ -382,6 +387,7 @@ function renderLobby() {
   $("lbSmug").checked = !!L.settings.smuggling;
   $("lbDlc").checked = !!L.settings.dlc;
   dlcCards($("lbDlcCards"), !!L.settings.dlc);
+  $("lbEv").checked = !!L.settings.events;
   const me = L.seats.find((s) => s.idx === game.me);
   $("lbReady").hidden = host || !me || L.phase !== "lobby";
   $("lbReady").textContent = me && me.ready ? t("lobby.notReady") : t("lobby.ready");
@@ -411,6 +417,7 @@ $("lbStart").addEventListener("click", () => send({ type: "start" }));
 document.querySelectorAll("#lbLevel button").forEach((b) => b.addEventListener("click", () => send({ type: "settings", level: b.dataset.level })));
 $("lbSmug").addEventListener("change", (e) => send({ type: "settings", smuggling: e.target.checked }));
 $("lbDlc").addEventListener("change", (e) => send({ type: "settings", dlc: e.target.checked }));
+$("lbEv").addEventListener("change", (e) => send({ type: "settings", events: e.target.checked }));
 const chatSend = (inp) => { const text = inp.value.trim(); if (!text) return; send({ type: "chat", text }); inp.value = ""; };
 $("lbSend").addEventListener("click", () => chatSend($("lbChat")));
 $("lbChat").addEventListener("keydown", (e) => { if (e.key === "Enter") chatSend($("lbChat")); });
@@ -476,6 +483,18 @@ function describeParts(e, L, parts) {
       return L("declare", { name: nameOf(e.seat), gang: gangName(e.gang), result: L(e.correct ? "right" : gangWrong ? "wrongGang" : "wrongCount") });
     }
     case "solo": return L("solo", { name: nameOf(e.seat) });
+    case "event": {
+      const sep = lang === "en" ? ", " : "、";
+      if (!e.id) return L("evNone");
+      if (e.id === "dining") return L("evDining", { items: (e.kinds || []).map(itemName).join(sep) });
+      if (e.id === "speaker") return L(e.cases ? "evSpeaker" : "evSpeakerNo", { w: e.watches, s: e.seals, c: e.cases });
+      if (e.id === "customs") return e.done ? L("evCustoms", { n: e.shown || 0 }) : L("evCustomsStart");
+      if (e.id === "password") {
+        if (!e.done) return L("evPasswordStart");
+        return e.seat != null ? L("evPasswordShow", { name: nameOf(e.seat), n: e.votes, item: itemName(e.kind) }) : L("evPasswordTie");
+      }
+      return L(e.id === "boiler" ? "evBoiler" : "evLights");
+    }
     default: return "";
   }
 }
@@ -492,7 +511,7 @@ function frozen(v, e) {
 function render() {
   const live = curView();
   if (!live) return;
-  if (game.result && live.phase === "over") game.result = null;
+  if (live.phase === "over") { game.result = null; game.evCard = null; }
   const v = game.result ? frozen(live, game.result) : live;
   const legal = curLegal();
   handPick = null;
@@ -506,6 +525,13 @@ function render() {
   renderKnown(v);
   renderOverlay(v);
   // the answer to a peek: a private line, and the passenger's sheet with what was seen
+  // a bag shown to you alone at a stop deserves a line of its own
+  const seen = v.knowledge.filter((k) => k.k === "seen" && k.via === "customs");
+  if (game.seenCount === null) game.seenCount = seen.length;
+  else if (seen.length > game.seenCount) {
+    for (const k of seen.slice(game.seenCount)) addSys(t("table.sawBag", { name: nameOf(k.seat), item: itemName(k.kind) }), true);
+    game.seenCount = seen.length;
+  }
   if (game.peekSeat != null) {
     const seat = game.peekSeat;
     const gang = (v.knowledge.filter((k) => k.k === "gang" && k.seat === seat).pop() || {}).gang;
@@ -517,7 +543,10 @@ function render() {
   }
 }
 function renderBar(v) {
-  $("barLeft").textContent = v.phase === "reveal" ? "" : t("table.stop", { n: num(Math.max(1, Math.ceil(v.turnNo / v.n))) });
+  const flags = [];
+  if (v.stop && v.stop.boiler) flags.push(t("events.boiler"));
+  if (v.stop && v.stop.lights) flags.push(t("events.lights"));
+  $("barLeft").textContent = v.phase === "reveal" ? "" : t("table.stop", { n: num(Math.max(1, Math.ceil(v.turnNo / v.n))) }) + (flags.length ? " · " + flags.join(" · ") : "");
   let right = `${t("table.pile", { n: v.pile })} · ${t("table.limit", { n: v.handLimit })}`;
   if (game.mode === "net" && game.deadline && v.phase !== "over") {
     const s = Math.max(0, Math.ceil((game.deadline - Date.now()) / 1000));
@@ -535,6 +564,7 @@ function seatPickTargets(v, legal) {
   }
   if (v.phase === "handLimit" && ui.item) return legal.filter((a) => a.type === "gift" && a.item === ui.item).map((a) => a.to);
   if (v.phase === "scuffle" && v.scuffle.step === "hypnotist" && v.scuffle.attacker === game.me) return legal.filter((a) => a.target != null).map((a) => a.target);
+  if (v.phase === "event" && v.ev && v.ev.step === "vote") return legal.filter((a) => a.type === "vote").map((a) => a.target);
   return [];
 }
 function onSeatPick(v, legal, seat) {
@@ -545,6 +575,7 @@ function onSeatPick(v, legal, seat) {
     if (ui.mode === "demand") return humanAct({ type: "demand", seat: game.me, target: seat, kind: ui.kind });
   }
   if (v.phase === "handLimit") return humanAct({ type: "gift", seat: game.me, item: ui.item, to: seat });
+  if (v.phase === "event") return humanAct({ type: "vote", seat: game.me, target: seat });
   if (v.phase === "scuffle") return humanAct({ type: "hypnotize", seat: game.me, target: seat });
 }
 const RING_FACES = {};
@@ -651,6 +682,7 @@ function whatIKnow(v, seat) {
       if (k.k === "hand" && k.seat === seat) { forget(); for (const it of k.items) known[it.id] = it.kind; }
       if (k.k === "got" && k.from === seat) delete known[k.id];
       if ((k.k === "gave" && k.to === seat) || (k.k === "lost" && k.to === seat) || (k.k === "offered" && k.from === seat)) known[k.id] = k.kind;
+      if (k.k === "seen" && k.seat === seat) known[k.id] = k.kind; // shown at a stop
     }
     void ids;
   }
@@ -697,6 +729,7 @@ function faceEl(seat, cls = "") {
   return h("span", { class: "face init " + cls }, [...(nameOf(seat) || "?")][0]);
 }
 const itemImg = (kind, cls = "") => h("img", { class: cls, src: "art/item_" + kind + ".jpg", alt: "" });
+const eventImg = (id, cls = "") => h("img", { class: cls, src: "art/event_" + (id || "none") + ".jpg", alt: "" });
 const tradeImg = (tr, cls = "") => h("img", { class: cls, src: "art/trade_" + tr + ".jpg", alt: "" });
 // A luggage card: the picture and its name. Tapping it picks it when a pick is
 // on, otherwise opens its text.
@@ -797,8 +830,10 @@ function renderJourney() {
   for (const e of events) {
     const st = Math.max(1, Math.ceil(e.t / v.n));
     if (st !== stop) { stop = st; body.append(h("div", { class: "stopline" }, h("span", {}, t("table.stop", { n: num(st) })), h("span", { class: "ln" }))); }
-    const who = actorOf(e);
+    const who = e.type === "event" ? null : actorOf(e);
     const tags = [];
+    if (e.type === "event" && e.kind) tags.push(thumb(e.kind, () => openItemSheet(e.kind)));
+    for (const k of e.kinds || []) tags.push(thumb(k, () => openItemSheet(k)));
     for (const a of e.announced || []) tags.push(thumb(a.kind, () => openItemSheet(a.kind)));
     if (e.kind) tags.push(thumb(e.kind, () => openItemSheet(e.kind)));
     if (e.choice === "bribe") tags.push(thumb("gold_bar", () => openItemSheet("gold_bar")));
@@ -807,8 +842,9 @@ function renderJourney() {
       for (const k of x.items || []) { const b = thumb(k, () => openItemSheet(k)); b.firstChild.classList.add(side); tags.push(b); }
       if (x.trade) { const b = h("button", { type: "button", class: "thumbbtn", title: tradeName(x.trade), onclick: () => openTradeSheet(x.trade, Number(sid)) }, tradeImg(x.trade, "thumb " + side)); tags.push(b); }
     }
-    body.append(h("div", { class: "ev" + (e.type === "scuffle" || e.type === "declare" || e.type === "solo" ? " hot" : "") },
-      who != null ? faceEl(who, "xs") : h("span", {}), h("div", {}, describe(e), tags.length ? h("div", { class: "tags" }, ...tags) : null)));
+    body.append(h("div", { class: "ev" + (e.type === "scuffle" || e.type === "declare" || e.type === "solo" || (e.type === "event" && e.id) ? " hot" : "") },
+      e.type === "event" ? eventImg(e.id, "thumb ev") : who != null ? faceEl(who, "xs") : h("span", {}),
+      h("div", {}, describe(e), tags.length ? h("div", { class: "tags" }, ...tags) : null)));
   }
 }
 
@@ -853,6 +889,7 @@ function renderPanel(v, legal) {
   const me = game.me;
   const mineOnTurn = v.phase === "turn" && v.turn === me;
   if (game.result) { p.append(resultCard(v, game.result)); return; }
+  if (game.evCard) { p.append(eventCard(game.evCard)); return; }
 
   if (v.phase === "over") return p.append(overCard(v));
 
@@ -918,6 +955,36 @@ function renderPanel(v, legal) {
         btn(t("table.cancel"), "ghost", () => { game.ui = freshUi(); render(); }),
         btn(t("table.declareGo"), "p", () => humanAct({ type: "declare", seat: me, holders: { ...ui.holders } }))));
     }
+    p.append(card);
+    return;
+  }
+
+  if (v.phase === "event" && v.ev) {
+    const ev = v.ev;
+    const mineNow = v.waitingOn.includes(me);
+    const card = h("div", { class: "card hot" });
+    if (ev.step === "customs") {
+      card.append(h("div", { class: "title disp" }, h("span", {}, t("events.customs")), h("span", { class: "hint" }, t("table.together"))));
+      if (mineNow) {
+        handPick = { ids: new Set(legal.map((a) => a.item)), on: (id) => { ui.item = id; render(); } };
+        card.append(h("p", { class: "small" }, t("table.customsQ", { name: nameOf((me + 1) % v.n) })));
+        card.append(btn(ui.item ? t("table.customsGo", { item: itemName(kindOf(v, ui.item)) }) : t("table.bagPick"), "p", () => humanAct({ type: "customsPick", seat: me, item: ui.item }), !ui.item));
+      }
+    } else if (ev.step === "vote") {
+      const done = Object.values(ev.votes || {}).filter(Boolean).length;
+      card.append(h("div", { class: "title disp" }, h("span", {}, t("events.password")), h("span", { class: "hint" }, t("table.together"))));
+      card.append(h("p", { class: "small" }, t("table.voteQ")));
+      card.append(h("p", { class: "hint" }, t("table.voteCount", { n: done, max: v.n })));
+    } else if (ev.step === "showBag") {
+      card.append(h("div", { class: "title disp" }, t("events.password")));
+      if (mineNow) {
+        handPick = { ids: new Set(legal.map((a) => a.item)), on: (id) => { ui.item = id; render(); } };
+        card.append(h("p", { class: "small" }, t("table.showBagQ")));
+        card.append(btn(ui.item ? t("table.showBagGo", { item: itemName(kindOf(v, ui.item)) }) : t("table.bagPick"), "p", () => humanAct({ type: "showBag", seat: me, item: ui.item }), !ui.item));
+      } else card.append(h("p", { class: "small" }, t("table.showBagWait", { name: nameOf(ev.shower) })));
+    }
+    const still = waiting(v);
+    if (still) card.append(still);
     p.append(card);
     return;
   }
@@ -1108,6 +1175,19 @@ function resultCard(v, e) {
   for (const l of lines) card.append(h("p", { class: "small" }, l));
   card.append(btn(t("table.gotIt"), "p", () => { game.result = null; if (game.mode === "solo") tick(); else { render(); netAuto(); } }));
   return card;
+}
+
+// The card a stop opens with. The carriage waits until it has been read.
+function eventCard(e) {
+  const line = e.id === "dining" ? t("events.diningSaw", { items: (e.kinds || []).map(itemName).join(lang === "en" ? ", " : "、") })
+    : e.id === "speaker" ? t(e.cases ? "events.speakerSays" : "events.speakerSaysNo", { w: e.watches, s: e.seals, c: e.cases })
+    : t("eventText." + e.id);
+  return h("div", { class: "card ev" },
+    eventImg(e.id, "evart"),
+    h("span", { class: "lab" }, t("table.stop", { n: num(e.stop) }) + " · " + t("events.head")),
+    h("div", { class: "disp g2" }, t("events." + e.id)),
+    h("p", { class: "small" }, line),
+    btn(t("table.gotIt"), "p", () => { game.evCard = null; if (game.mode === "solo") tick(); else { render(); netAuto(); } }));
 }
 
 function overCard(v) {
