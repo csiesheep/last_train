@@ -7,7 +7,7 @@ export default {
   stamp: "23:40 · THIRD-CLASS SLEEPER",
   tagline: "The last train out, and everyone aboard has something to hide.\nTrade, scuffle, show your hand.",
   meta: "3–10 players · about 30 minutes · works on a phone",
-  credit: "A free fan project, unofficial, nothing to install. The play is inspired by Die Kutschfahrt zur Teufelsburg, a card game designed by Michael Palm and Lukas Zach; the name, setting, art and words here are our own.",
+  credit: "Free, nothing to install. Inspired by Die Kutschfahrt zur Teufelsburg, a card game designed by Michael Palm and Lukas Zach; the name, setting, art and words here are our own.",
   nav: { back: "Back", rules: "Rules", hub: "More games", lang: "中文", solo: "solo" },
   landing: { play: "Board solo with AI passengers", create: "Open a compartment", join: "Board", code: "Code", soon: "Online compartments are still being laid (M4). Board solo for now.", name: "Your name",
     about: "A hidden-gang card game: three to ten passengers belong to two gangs, trade and scuffle to learn who is who and whose bag holds what, and show their hand once their side holds three pocket watches or three jade seals. Play solo against AI passengers who talk. English and Traditional Chinese." },

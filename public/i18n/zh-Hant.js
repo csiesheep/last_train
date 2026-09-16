@@ -7,7 +7,7 @@ export default {
   stamp: "23:40 · 三等臥鋪 · 終點站不明",
   tagline: "夜車出站，同車的人各懷心思。\n交換、動手，攤牌。",
   meta: "3–10 人 · 約 30 分鐘 · 手機即可",
-  credit: "同人作品，非官方，免費無需安裝。玩法啟發自 Michael Palm 與 Lukas Zach 設計的《Die Kutschfahrt zur Teufelsburg》；名稱、設定、美術與文字皆為本站原創。",
+  credit: "免費，無需安裝。玩法啟發自 Michael Palm 與 Lukas Zach 設計的《Die Kutschfahrt zur Teufelsburg》；名稱、設定、美術與文字皆為本站原創。",
   nav: { back: "返回", rules: "規則", hub: "更多遊戲", lang: "EN", solo: "單人" },
   landing: { play: "單人上車 · 與 AI 同行", create: "開一間包廂", join: "上車", code: "車次", soon: "線上包廂還在鋪軌（M4）。先單人上車吧。", name: "你的名字",
     about: "一款隱藏陣營的卡牌遊戲：三到十位乘客分屬兩個幫會，靠交換與衝突探出誰是自己人、東西在誰手上，集齊三只懷錶或三枚玉印就攤牌。單人可與會說話的 AI 乘客同車。中英文皆可。" },
