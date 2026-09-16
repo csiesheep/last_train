@@ -138,6 +138,9 @@ $("filmChk").addEventListener("change", (e) => { setup.film = e.target.checked; 
 // back. Off when the setting is off, when the system asks for less motion, or
 // when a seat is playing itself.
 const FILMS = { board: "video/board.mp4", win: "video/win.mp4", lose: "video/lose.mp4" };
+// How the screen turns over when a film ends: to black, then the black lifts on
+// the carriage, and only after a breath does anybody move.
+const FADE = { black: 420, lift: 700, settle: 1000 };
 let endFilm = null; // what to do once the film is done, while one is playing
 function filmsOn() {
   if (!setup.film || game.auto) return false;
@@ -146,18 +149,30 @@ function filmsOn() {
 function playFilm(kind, then) {
   const box = $("film"), vid = $("filmVid");
   if (!filmsOn() || !FILMS[kind]) { if (then) then(); return; }
-  endFilm = () => {
-    endFilm = null;
-    box.hidden = true;
-    try { vid.pause(); vid.removeAttribute("src"); vid.load(); } catch {}
-    if (then) then();
-  };
+  endFilm = () => { endFilm = null; closeFilm(then); };
   vid.src = FILMS[kind];
   vid.muted = false;
   box.hidden = false;
   // a film that will not play with sound plays without it; one that will not
   // play at all gets out of the way
   vid.play().catch(() => { vid.muted = true; vid.play().catch(() => endFilm && endFilm()); });
+}
+// The film fades to black; behind the black the game takes its place; the black
+// lifts, and the carriage waits a second before anyone acts.
+function closeFilm(then) {
+  const box = $("film"), vid = $("filmVid");
+  game.hold = true;
+  box.classList.add("toblack");
+  setTimeout(() => {
+    try { vid.pause(); vid.removeAttribute("src"); vid.load(); } catch {}
+    if (then) then();
+    box.classList.add("out");
+    setTimeout(() => {
+      box.hidden = true;
+      box.classList.remove("toblack", "out");
+      setTimeout(() => { game.hold = false; tick(); }, FADE.settle);
+    }, FADE.lift);
+  }, FADE.black);
 }
 $("film").addEventListener("click", () => endFilm && endFilm());
 $("filmVid").addEventListener("ended", () => endFilm && endFilm());
@@ -178,6 +193,7 @@ const game = {
   ws: null, code: null, lobby: null, closed: false, clock: null, gen: -1, deadline: 0,
   ui: freshUi(), peekSeat: null, result: null, evCard: null, seenCount: null, viewKey: "",
   tut: null,          // the guided game: { seen: { coachKey: true }, pending: coachKey | null }
+  hold: false, filmOver: false, // the screen is turning over after a film; the ending film has played
 };
 const curView = () => (game.mode === "solo" ? (game.st ? E.view(game.st, game.me) : null) : game.view);
 const curLegal = () => (game.mode === "solo" ? (game.st ? E.legalActions(game.st, game.me) : []) : game.legal);
@@ -201,7 +217,7 @@ function startGame() {
   game.faces = [setup.face, ...freeFaces(game.rng, [setup.face], E.shuffle).slice(0, n - 1)];
   game.names = soloNames();
   game.log = []; game.logSeen = 0; game.flashUntil = 0; game.ui = freshUi(); game.result = null; game.evCard = null; game.seenCount = null;
-  game.tut = null; game.filmOver = false;
+  game.tut = null; game.filmOver = false; game.hold = false;
   clearTimeout(game.botTimer);
   show("table");
   tick();
@@ -249,7 +265,7 @@ function startTutorial() {
   game.faces = TUT_FACES.slice();
   game.names = soloNames();
   game.log = []; game.logSeen = 0; game.flashUntil = 0; game.ui = freshUi(); game.result = null; game.evCard = null; game.seenCount = null;
-  game.tut = { seen: {}, pending: null }; game.filmOver = false;
+  game.tut = { seen: {}, pending: null }; game.filmOver = false; game.hold = false;
   show("table");
   tick();
 }
@@ -401,6 +417,7 @@ function tick() {
   if (!st || st.phase === "over") return;
   if ((game.result || game.evCard) && !game.auto) return; // the carriage holds until the result, or the stop's event, is read
   if (game.tut && game.tut.pending) return; // and until the guide's slip is read
+  if (game.hold) return; // and while the screen is turning over after a film
   const who = E.mustAct(st);
   if (!who.length) return;
   if (who.includes(game.me) && !game.auto) {
