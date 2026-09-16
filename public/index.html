@@ -82,6 +82,7 @@
     </section>
     <div class="spacer"></div>
     <button type="button" class="btn p" id="btnPlay" data-t="landing.play"></button>
+    <p class="center tutline"><button type="button" class="linkish" id="tutLink" data-t="tutorial.link"></button></p>
     <label class="field"><span class="lab" data-t="landing.name"></span><input id="landName" maxlength="16" autocomplete="off"></label>
     <button type="button" class="btn" id="btnCreate" data-t="landing.create"></button>
     <div class="row">
@@ -95,6 +96,18 @@
   <p class="about" data-t="landing.about">一款隱藏陣營的卡牌遊戲：三到十位乘客分屬兩個幫會，靠交換與衝突探出誰是自己人、東西在誰手上，集齊三只懷錶或三枚玉印就攤牌。單人可與會說話的 AI 乘客同車，或開一間包廂和朋友連線。A hidden-gang card game for three to ten passengers: trade and scuffle to learn who is who, then show your hand once your side holds three pocket watches or three jade seals. Solo against AI passengers who talk, or online with friends. English and Traditional Chinese.</p>
   <p class="foot"><small data-t="credit"></small></p>
   <p class="foot"><a href="https://games.csiesheep.com/">&larr; <span data-t="nav.hub"></span></a></p>
+</main>
+
+<!-- ===== Tutorial: five steps, then a guided game ===== -->
+<main id="view-tutorial" class="scr" hidden>
+  <div class="bar"><a href="." data-link data-t="nav.back"></a><span data-t="tutorial.nav"></span></div>
+  <h2 class="disp h2" data-t="tutorial.title"></h2>
+  <p class="hint" data-t="tutorial.sub"></p>
+  <div class="steps" id="tutSteps"></div>
+  <button type="button" class="btn p" id="btnTutStart" data-t="tutorial.start"></button>
+  <p class="hint center" data-t="tutorial.startSub"></p>
+  <button type="button" class="btn ghost" id="btnTutSkip" data-t="tutorial.skip"></button>
+  <div class="spacer"></div>
 </main>
 
 <!-- ===== Solo setup ===== -->
@@ -117,6 +130,7 @@
   <label class="card check"><span><b data-t="setup.dlc"></b><span class="hint block" data-t="setup.dlcHint"></span></span><input type="checkbox" id="dlcChk"></label>
   <div class="dlccards" id="dlcCards" hidden></div>
   <label class="card check"><span><b data-t="setup.events"></b><span class="hint block" data-t="setup.eventsHint"></span></span><input type="checkbox" id="evChk"></label>
+  <label class="card check"><span><b data-t="film.setting"></b><span class="hint block" data-t="film.settingHint"></span></span><input type="checkbox" id="filmChk"></label>
   <div class="dlccards evcards" id="evCards" hidden></div>
   <div class="spacer"></div>
   <button type="button" class="btn p" id="btnStart" data-t="setup.start"></button>
@@ -162,6 +176,7 @@
   <div class="backdrop" aria-hidden="true"><img src="art/carriage.jpg" alt=""><div class="veil"></div></div>
   <div class="bar"><span id="barLeft"></span><span id="barRight"></span></div>
   <div class="ring" id="seats"></div>
+  <div id="coach" hidden></div>
   <div id="panel"></div>
   <div id="hand"></div>
   <!-- Carriage talk: what the passengers say and what the carriage announces. -->
@@ -183,6 +198,12 @@
 </main>
 
 <!-- ===== Reveal overlay ===== -->
+<!-- The short films: boarding as the train leaves, and how your journey ended.
+     Outside the table view, which flattens its own children into the page flow. -->
+<div id="film" class="film" hidden>
+  <video id="filmVid" playsinline preload="none"></video>
+  <button type="button" class="btn sm ghost skip" id="filmSkip" data-t="film.skip"></button>
+</div>
 <div id="overlay" class="overlay" hidden></div>
 <!-- ===== Card and trade texts, as a bottom sheet ===== -->
 <div id="scrim" class="scrim" hidden></div>

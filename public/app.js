@@ -73,6 +73,11 @@ function setLang(l) {
   store.set("lt.lang", lang);
   document.documentElement.lang = lang;
   document.querySelectorAll("[data-t]").forEach((el) => { el.textContent = t(el.dataset.t); });
+  // the tutorial's entry line steps aside once it has been run
+  const done = store.get("lt.tutDone", "0") === "1";
+  $("tutLink").textContent = t(done ? "tutorial.linkDone" : "tutorial.link");
+  $("tutLink").parentElement.classList.toggle("done", done);
+  if (!$("view-tutorial").hidden) renderTutorial();
   document.querySelectorAll("[data-ph]").forEach((el) => { el.placeholder = t(el.dataset.ph); });
   renderSetup();
   if (game.mode === "solo" && game.st) { game.names = soloNames(); rebuildLog(); render(); }
@@ -94,6 +99,7 @@ const setup = {
   smuggling: store.get("lt.smug", "0") === "1",
   dlc: store.get("lt.dlc", "0") === "1",
   events: store.get("lt.ev", "0") === "1",
+  film: store.get("lt.film", "1") === "1",
   face: store.get("lt.face", ""),
 };
 const ALL_DLC = Object.fromEntries(E.EXPANSIONS.map((k) => [k, true]));
@@ -115,6 +121,7 @@ function renderSetup() {
   dlcCards($("dlcCards"), setup.dlc);
   $("evChk").checked = setup.events;
   eventCards($("evCards"), setup.events);
+  $("filmChk").checked = setup.film;
 }
 $("pMinus").addEventListener("click", () => { setup.n = Math.max(E.MIN_PLAYERS, setup.n - 1); store.set("lt.n", setup.n); renderSetup(); });
 $("pPlus").addEventListener("click", () => { setup.n = Math.min(E.MAX_PLAYERS, setup.n + 1); store.set("lt.n", setup.n); renderSetup(); });
@@ -123,8 +130,43 @@ $("nameInput").addEventListener("input", (e) => { setup.name = e.target.value.tr
 $("smugChk").addEventListener("change", (e) => { setup.smuggling = e.target.checked; store.set("lt.smug", setup.smuggling ? "1" : "0"); });
 $("dlcChk").addEventListener("change", (e) => { setup.dlc = e.target.checked; store.set("lt.dlc", setup.dlc ? "1" : "0"); renderSetup(); });
 $("evChk").addEventListener("change", (e) => { setup.events = e.target.checked; store.set("lt.ev", setup.events ? "1" : "0"); renderSetup(); });
+$("filmChk").addEventListener("change", (e) => { setup.film = e.target.checked; store.set("lt.film", setup.film ? "1" : "0"); });
+
+// ---------- the short films ----------
+// Boarding as the train leaves, and how the journey ended. They play full screen
+// over everything; a tap, the skip button or the end of the clip hands the game
+// back. Off when the setting is off, when the system asks for less motion, or
+// when a seat is playing itself.
+const FILMS = { board: "video/board.mp4", win: "video/win.mp4", lose: "video/lose.mp4" };
+let endFilm = null; // what to do once the film is done, while one is playing
+function filmsOn() {
+  if (!setup.film || game.auto) return false;
+  try { return !window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch { return true; }
+}
+function playFilm(kind, then) {
+  const box = $("film"), vid = $("filmVid");
+  if (!filmsOn() || !FILMS[kind]) { if (then) then(); return; }
+  endFilm = () => {
+    endFilm = null;
+    box.hidden = true;
+    try { vid.pause(); vid.removeAttribute("src"); vid.load(); } catch {}
+    if (then) then();
+  };
+  vid.src = FILMS[kind];
+  vid.muted = false;
+  box.hidden = false;
+  // a film that will not play with sound plays without it; one that will not
+  // play at all gets out of the way
+  vid.play().catch(() => { vid.muted = true; vid.play().catch(() => endFilm && endFilm()); });
+}
+$("film").addEventListener("click", () => endFilm && endFilm());
+$("filmVid").addEventListener("ended", () => endFilm && endFilm());
+$("filmVid").addEventListener("error", () => endFilm && endFilm());
 $("btnStart").addEventListener("click", () => startGame());
 $("btnPlay").addEventListener("click", () => go("?play"));
+$("tutLink").addEventListener("click", () => go("?tutorial"));
+$("btnTutStart").addEventListener("click", () => go("?play=tutorial"));
+$("btnTutSkip").addEventListener("click", () => go("?play"));
 
 // ---------- game ----------
 const game = {
@@ -135,6 +177,7 @@ const game = {
   log: [], logSeen: 0, flashUntil: 0, auto: false,
   ws: null, code: null, lobby: null, closed: false, clock: null, gen: -1, deadline: 0,
   ui: freshUi(), peekSeat: null, result: null, evCard: null, seenCount: null, viewKey: "",
+  tut: null,          // the guided game: { seen: { coachKey: true }, pending: coachKey | null }
 };
 const curView = () => (game.mode === "solo" ? (game.st ? E.view(game.st, game.me) : null) : game.view);
 const curLegal = () => (game.mode === "solo" ? (game.st ? E.legalActions(game.st, game.me) : []) : game.legal);
@@ -158,9 +201,172 @@ function startGame() {
   game.faces = [setup.face, ...freeFaces(game.rng, [setup.face], E.shuffle).slice(0, n - 1)];
   game.names = soloNames();
   game.log = []; game.logSeen = 0; game.flashUntil = 0; game.ui = freshUi(); game.result = null; game.evCard = null; game.seenCount = null;
+  game.tut = null; game.filmOver = false;
   clearTimeout(game.botTimer);
   show("table");
   tick();
+}
+
+// ---------- the guided game ----------
+// A fixed four-seat table: you are seat 0 with a watch and the monocle, 花子
+// (seat 2) is with you and holds the second watch, 陳老闆 (seat 3) holds the
+// third, and 伊凡 (seat 1) is the one who comes at you. The bots follow a script
+// while the game is on its rails and think for themselves the moment it leaves
+// them, so going off script only means fewer guide slips. The script is written
+// so the player gets there: the third watch is won two backers against one, and
+// the declaration they are walked through is true.
+const TUT_FACES = ["lin", "ivan", "hana", "chen"];
+const TUT_HANDS = [["watch1", "monocle"], ["warrant"], ["watch2"], ["watch3", "dagger"]];
+// The player's trade is the bodyguard on purpose: it only speaks up when you
+// back somebody else, which the script never asks of you, so the guided game
+// never stops for a power the guide has not explained.
+const TUT_TRADES = ["bodyguard", "thug", "master", "gunman"];
+const COACH_ORDER = ["reveal", "trade", "peeked", "scuffle", "attack", "declare"];
+const TUT_P = () => ({ mate: nameOf(2), foe: nameOf(1), third: nameOf(3) });
+
+function tutorialState() {
+  const st = E.createGame(20260916, 4, {});
+  const dealt = new Set(TUT_HANDS.flat());
+  st.seats.forEach((sd, s) => {
+    sd.items = TUT_HANDS[s].slice();
+    sd.gang = s % 2 === 0 ? E.TIMEKEEPERS : E.SEALBEARERS;
+    sd.trade = TUT_TRADES[s]; sd.tradeUsed = false; sd.tradeRevealed = false; sd.drink = false;
+  });
+  st.pile = Object.keys(st.items).filter((id) => !dealt.has(id));
+  st.gangSizes = { [E.TIMEKEEPERS]: 2, [E.SEALBEARERS]: 2 };
+  st.minority = null;
+  st.spareTrades = E.TRADE_IDS.filter((tr) => !TUT_TRADES.includes(tr));
+  st.turn = 0;
+  return st;
+}
+function startTutorial() {
+  leaveRoom(true);
+  clearTimeout(game.botTimer);
+  game.mode = "solo"; game.view = null; game.legal = []; game.auto = false;
+  game.rng = E.makeRng(E.randomSeed());
+  game.st = tutorialState();
+  game.me = 0; game.level = "normal";
+  game.faces = TUT_FACES.slice();
+  game.names = soloNames();
+  game.log = []; game.logSeen = 0; game.flashUntil = 0; game.ui = freshUi(); game.result = null; game.evCard = null; game.seenCount = null;
+  game.tut = { seen: {}, pending: null }; game.filmOver = false;
+  show("table");
+  tick();
+}
+// What a bot does while the tutorial is on its rails, or null to let it think.
+function tutorialAction(seat) {
+  const st = game.st;
+  if (st.phase === "turn" && st.turn === seat) {
+    if (st.turnNo === 2 && seat === 1) return { type: "attack", seat, target: 0 };
+    return { type: "pass", seat };
+  }
+  if (st.phase === "trade" && st.trade.step === "answer" && st.trade.to === seat) {
+    const keep = E.legalActions(st, seat).filter((a) => a.accept);
+    return keep.length ? keep[0] : null;
+  }
+  if (st.phase === "scuffle") {
+    const f = st.scuffle;
+    const loser = f.winner === f.attacker ? f.defender : f.attacker;
+    if (["priest", "gunman", "doctor"].includes(f.step)) return { type: "window", seat, use: false };
+    if (f.step === "support" && f.next === seat) {
+      const withAttacker = f.attacker === 1 ? seat === 3 : seat === 2;
+      return { type: "support", seat, side: withAttacker ? "attacker" : "out" };
+    }
+    if (f.step === "hypnotist" && f.attacker === seat) return { type: "hypnotize", seat, target: null };
+    if (f.step === "powers") return { type: "show", seat, items: [], trade: false };
+    if (f.step === "choice" && f.winner === seat) return { type: "choice", seat, take: true };
+    if (f.step === "take" && f.winner === seat) {
+      // never take the player's watch: the tutorial is a game they win
+      const id = st.seats[loser].items.find((x) => st.items[x] !== "watch") || st.seats[loser].items[0];
+      return id ? { type: "takeItem", seat, item: id } : null;
+    }
+  }
+  return null;
+}
+// The scripted action only stands if the engine actually offers it.
+function scriptedAction(seat, legal) {
+  const a = tutorialAction(seat);
+  if (!a) return null;
+  const same = (x, y) => x === undefined || x === y;
+  return legal.some((l) => l.type === a.type && same(l.item, a.item) && same(l.target, a.target)
+    && same(l.side, a.side) && same(l.take, a.take) && same(l.use, a.use)) ? a : null;
+}
+function coachKey(v) {
+  if (!game.tut) return null;
+  const me = game.me;
+  if (v.phase === "reveal") return "reveal";
+  if (v.phase === "over") return null;
+  if (v.phase === "turn" && v.turn === me) {
+    const watches = v.me.items.filter((x) => x.kind === "watch").length;
+    if (watches >= 2) return "declare";
+    if (v.me.items.some((x) => x.kind === "monocle")) return "trade";
+    return "attack";
+  }
+  if (v.phase === "scuffle" && v.scuffle.defender === me && v.scuffle.attacker !== me) return "scuffle";
+  if (v.knowledge.some((k) => k.k === "gang" && k.seat === 1)) return "peeked";
+  return null;
+}
+// The guide's slip: one step at a time, and a way to be rid of it. The reveal
+// page carries its own, since it covers the table.
+function renderCoach(v) {
+  const el = clear($("coach"));
+  if (!game.tut || v.phase === "reveal") { el.hidden = true; if (game.tut) game.tut.pending = null; return; }
+  const key = coachKey(v);
+  const on = !!key && !game.tut.seen[key];
+  game.tut.pending = on ? key : null;
+  el.hidden = !on;
+  if (!on) return;
+  el.append(coachSlip(key));
+}
+function coachSlip(key) {
+  const i = COACH_ORDER.indexOf(key);
+  return h("div", { class: "coach" },
+    h("span", { class: "k" }, t("tutorial.guide")),
+    h("div", { class: "b" },
+      h("p", { html: t("tutorial.coach." + key, TUT_P()) }),
+      h("div", { class: "f" },
+        h("small", {}, t("tutorial.stepOf", { i: num(i + 1), n: num(COACH_ORDER.length) })),
+        h("div", { class: "row", style: "gap:10px" },
+          h("button", { type: "button", class: "linkish", onclick: () => { game.tut = null; render(); tick(); } }, t("tutorial.off")),
+          btn(t("tutorial.ok"), "p sm", () => { game.tut.seen[key] = true; render(); tick(); })))));
+}
+function renderTutorial() {
+  const box = clear($("tutSteps"));
+  const sq = (el) => { el.classList.add("sq"); return el; };
+  const pill = (key, cls = "") => h("span", { class: "pill " + cls }, t(key));
+  const illos = [
+    () => [h("img", { class: "tok", src: "art/gang_watch.jpg", alt: "" }), sq(tradeImg("bodyguard")), sq(itemImg("watch")), h("span", { class: "mini" }, t("reveal.yourGang") + " · " + t("reveal.yourTrade") + " · " + t("reveal.yourBag"))],
+    () => [pill("table.trade"), pill("table.fight", "atk"), pill("table.declare", "brass"), pill("table.pass")],
+    () => [sq(itemImg("monocle")), h("span", { class: "mini" }, "→"), faceEl(1), h("span", { class: "mini" }, t("itemText.monocle"))],
+    () => [h("span", { class: "mini atk" }, t("table.swords") + " 3"), h("span", { class: "mini" }, "vs"), h("span", { class: "mini def" }, t("table.shields") + " 2"), sq(itemImg("dagger")), sq(itemImg("gloves"))],
+    () => [sq(itemImg("watch")), sq(itemImg("watch")), h("span", { class: "mini" }, "＋"), faceEl(2), sq(itemImg("watch"))],
+  ];
+  const saved = game.faces;
+  game.faces = TUT_FACES.slice();
+  (S.tutorial.steps || []).forEach((step, i) => {
+    box.append(h("div", { class: "tut-step" }, h("span", { class: "n lat" }, num(i + 1)),
+      h("div", {}, h("b", {}, step.t), h("p", {}, step.d), h("div", { class: "illo" }, ...illos[i]()))));
+  });
+  game.faces = saved;
+}
+// The tutorial's own ending: what happened, what a real game adds, and a way on.
+function tutorialOverCard(v) {
+  const won = v.me && (typeof v.winner === "number" ? v.winner === game.me : v.me.gang === v.winner);
+  store.set("lt.tutDone", "1");
+  const list = (lab, lines) => h("div", { class: "card" }, h("span", { class: "lab" }, lab),
+    h("div", { class: "tips" }, ...lines.map((x, i) => h("div", {}, h("b", {}, String(i + 1)), h("span", { html: x })))));
+  return h("div", { class: "stack" },
+    h("div", { class: "card dark ticket over" },
+      h("img", { class: "medal", src: "art/gang_watch.jpg", alt: "" }),
+      h("span", { class: "lab" }, t("tutorial.endTitle")),
+      h("div", { class: "disp g watch" }, t(won ? "tutorial.endWin" : "tutorial.endLose")),
+      h("span", { class: "hint" }, t(won ? "tutorial.endWinText" : "tutorial.endLoseText", TUT_P()))),
+    list(t("tutorial.recapLab"), (S.tutorial.recap || []).map((x) => x.replace(/\{(\w+)\}/g, (_, k) => TUT_P()[k] ?? ""))),
+    list(t("tutorial.tipsLab"), S.tutorial.tips || []),
+    btn(t("tutorial.playReal"), "p", () => { setup.n = 6; store.set("lt.n", 6); game.tut = null; startGame(); }),
+    h("div", { class: "grid2" },
+      h("a", { class: "btn ghost", href: "rules" }, t("nav.rules")),
+      btn(t("tutorial.again"), "ghost", () => startTutorial())));
 }
 
 // Everything the bots decide, and what the human is not asked because it
@@ -194,6 +400,7 @@ function tick() {
   const st = game.st;
   if (!st || st.phase === "over") return;
   if ((game.result || game.evCard) && !game.auto) return; // the carriage holds until the result, or the stop's event, is read
+  if (game.tut && game.tut.pending) return; // and until the guide's slip is read
   const who = E.mustAct(st);
   if (!who.length) return;
   if (who.includes(game.me) && !game.auto) {
@@ -210,7 +417,7 @@ function botAct(seat) {
   if (!st || st.phase === "over" || !E.mustAct(st).includes(seat)) { tick(); return; }
   const view = E.view(st, seat);
   const legal = E.legalActions(st, seat);
-  const a = B.decide(view, legal, game.level, game.rng);
+  const a = (game.tut && scriptedAction(seat, legal)) || B.decide(view, legal, game.level, game.rng);
   if (!a) { tick(); return; }
   const line = sayAction(a, view, { rng: game.rng, names: game.names, T: S.talk });
   if (line) addSay(seat, line);
@@ -314,7 +521,7 @@ function onMsg(m) {
       renderLog(); renderLobbyLog(); break;
     case "view": {
       if (!m.view) { game.view = null; game.legal = []; if (game.lobby) { show("lobby"); renderLobby(); } break; }
-      if (m.gen !== game.gen) { game.gen = m.gen; game.log = game.log.filter((l) => l.room); game.logSeen = 0; game.ui = freshUi(); game.evCard = null; game.seenCount = null; }
+      if (m.gen !== game.gen) { game.gen = m.gen; game.log = game.log.filter((l) => l.room); game.logSeen = 0; game.ui = freshUi(); game.evCard = null; game.seenCount = null; game.filmOver = false; }
       const key = `${m.view.phase}/${m.view.scuffle?.step || m.view.trade?.step || ""}/${m.view.turnNo}/${(m.view.waitingOn || []).join(",")}/${m.view.log.length}`;
       if (key !== game.viewKey) { game.viewKey = key; game.ui = freshUi(); }
       game.view = m.view; game.legal = m.legal || []; game.names = m.names; game.faces = m.faces || []; game.me = m.me; game.deadline = m.deadline || 0;
@@ -513,7 +720,15 @@ function frozen(v, e) {
 function render() {
   const live = curView();
   if (!live) return;
-  if (live.phase === "over") { game.result = null; game.evCard = null; }
+  if (live.phase === "over") {
+    game.result = null; game.evCard = null;
+    // how your journey ended, once
+    if (!game.filmOver && game.me !== null && live.me) {
+      game.filmOver = true;
+      const won = typeof live.winner === "number" ? live.winner === game.me : live.me.gang === live.winner;
+      playFilm(won ? "win" : "lose");
+    }
+  }
   const v = game.result ? frozen(live, game.result) : live;
   const legal = curLegal();
   handPick = null;
@@ -521,6 +736,7 @@ function render() {
   renderQuick(v);
   $("tableLeave").textContent = game.mode === "net" ? t("lobby.leave") : t("table.lobby");
   renderBar(v);
+  renderCoach(v);
   renderPanel(v, legal);
   renderSeats(v, legal);
   renderHand(v);
@@ -548,7 +764,8 @@ function renderBar(v) {
   const flags = [];
   if (v.stop && v.stop.boiler) flags.push(t("events.boiler"));
   if (v.stop && v.stop.lights) flags.push(t("events.lights"));
-  $("barLeft").textContent = v.phase === "reveal" ? "" : t("table.stop", { n: num(Math.max(1, Math.ceil(v.turnNo / v.n))) }) + (flags.length ? " · " + flags.join(" · ") : "");
+  const stop = v.phase === "reveal" ? "" : t("table.stop", { n: num(Math.max(1, Math.ceil(v.turnNo / v.n))) }) + (flags.length ? " · " + flags.join(" · ") : "");
+  $("barLeft").textContent = game.tut ? `${t("tutorial.bar")} · ${stop}` : stop;
   let right = `${t("table.pile", { n: v.pile })} · ${t("table.limit", { n: v.handLimit })}`;
   if (game.mode === "net" && game.deadline && v.phase !== "over") {
     const s = Math.max(0, Math.ceil((game.deadline - Date.now()) / 1000));
@@ -1218,6 +1435,7 @@ function eventCard(e) {
 }
 
 function overCard(v) {
+  if (game.tut) return tutorialOverCard(v);
   const wrap = h("div", { class: "stack" });
   const soloWin = typeof v.winner === "number";
   const head = h("div", { class: "card dark ticket over" });
@@ -1255,6 +1473,7 @@ function renderOverlay(v) {
     h("a", { href: ".", class: "brand disp", onclick: (e) => { e.preventDefault(); leaveRoom(); go(""); } }, t("title")),
     h("nav", {}, h("a", { href: "rules" }, t("nav.rules")), h("button", { type: "button", class: "linkish", onclick: () => setLang(lang === "en" ? "zh-Hant" : "en") }, t("nav.lang")))));
   ov.append(h("main", { class: "scr" },
+    game.tut && !game.tut.seen.reveal ? coachSlip("reveal") : null,
     h("div", { class: "card dark gangcard" }, h("img", { src: "art/gang_" + E.GOAL[gang] + ".jpg", alt: "" }),
       h("div", { class: "cap" }, h("span", { class: "lab" }, t("reveal.yourGang")), h("div", { class: "disp g " + (gang === E.TIMEKEEPERS ? "watch" : "seal") }, gangName(gang)),
         h("span", { class: "lat sub2" }, t("gang." + gang + "Lat") + " · " + t("goal." + gang)),
@@ -1263,13 +1482,18 @@ function renderOverlay(v) {
     ...me.items.map((it, i) => rowCard(itemImg(it.kind, "art sm"), i === 0 ? h("span", { class: "lab" }, t("reveal.yourBag")) : null, h("span", { class: "disp", style: "font-size:20px" }, itemName(it.kind)), h("p", { class: "small" }, t("itemText." + it.kind)))),
     me.drink ? h("p", { class: "hint" }, t("reveal.drink")) : null,
     h("div", { class: "spacer" }),
-    btn(t("reveal.ready"), "p", () => humanAct({ type: "ready", seat: game.me }))));
+    // Solo: the train pulls out, then the game starts. In a compartment the
+    // others are waiting, so the seat is readied first and the film plays over it.
+    btn(t("reveal.ready"), "p", () => {
+      if (game.mode === "net") { humanAct({ type: "ready", seat: game.me }); playFilm("board"); }
+      else playFilm("board", () => humanAct({ type: "ready", seat: game.me }));
+    })));
 }
 
 const kindOf = (v, id) => (v.me.items.find((x) => x.id === id) || {}).kind || id.replace(/\d+$/, "");
 
 // ---------- routing ----------
-const views = ["landing", "setup", "lobby", "table"];
+const views = ["landing", "tutorial", "setup", "lobby", "table"];
 function show(name) { closeSheet(); for (const v of views) $("view-" + v).hidden = v !== name; if (name !== "table") $("overlay").hidden = true; }
 function go(q) { history.pushState(null, "", location.pathname + q); route(); }
 function route() {
@@ -1277,6 +1501,16 @@ function route() {
   const code = (q.get("room") || "").toUpperCase();
   $("landStatus").textContent = ""; $("landStatus").classList.remove("err");
   $("landName").value = setup.name;
+  if (q.get("play") === "tutorial") {
+    leaveRoom(true); game.mode = "solo";
+    if (game.tut && game.st && game.st.phase !== "over") { show("table"); render(); } else startTutorial();
+    return;
+  }
+  if (q.has("tutorial")) {
+    leaveRoom(true); game.mode = "solo"; game.st = null; game.view = null;
+    renderTutorial(); show("tutorial");
+    return;
+  }
   if (q.has("play")) {
     leaveRoom(true); game.mode = "solo";
     game.auto = q.get("auto") === "1";
