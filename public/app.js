@@ -1157,8 +1157,11 @@ function scuffleCard(v, legal) {
       const loser = f.winner === f.attacker ? f.defender : f.attacker;
       const take = legal.find((a) => a.take);
       card.append(h("p", {}, t("table.choiceQ")));
-      card.append(h("div", { class: "stack" }, btn(t("table.peekChoice", { name: nameOf(loser) }), "", () => humanAct({ type: "choice", seat: me, take: false })),
-        btn(t("table.takeChoice", { name: nameOf(loser) }), "p", () => humanAct({ type: "choice", seat: me, take: true }), !take)));
+      const picks = h("div", { class: "stack" }, btn(t("table.peekChoice", { name: nameOf(loser) }), take ? "" : "p", () => humanAct({ type: "choice", seat: me, take: false })));
+      // With the lights out there is nothing to offer but the look.
+      if (take) picks.append(btn(t("table.takeChoice", { name: nameOf(loser) }), "p", () => humanAct({ type: "choice", seat: me, take: true })));
+      card.append(picks);
+      if (!take && v.stop && v.stop.lights) card.append(h("p", { class: "hint" }, t("table.lightsOnly")));
       break;
     }
     case "take": {
@@ -1206,7 +1209,7 @@ function eventCard(e) {
   const line = e.id === "dining" ? t("events.diningSaw", { items: (e.kinds || []).map(itemName).join(lang === "en" ? ", " : "、") })
     : e.id === "speaker" ? t(e.cases ? "events.speakerSays" : "events.speakerSaysNo", { w: e.watches, s: e.seals, c: e.cases })
     : t("eventText." + e.id);
-  return h("div", { class: "card ev" },
+  return h("div", { class: "card stopcard" }, // not "ev": that is the journey log's row
     eventImg(e.id, "evart"),
     h("span", { class: "lab" }, t("table.stop", { n: num(e.stop) }) + " · " + t("events.head")),
     h("div", { class: "disp g2" }, t("events." + e.id)),

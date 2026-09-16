@@ -99,7 +99,7 @@ export default {
     use: "用", skip: "不用", supportQ: "你幫哪邊？", hypnoQ: "催眠師：點名誰旁觀？", hypnoNone: "不點名",
     powersQ: "亮出什麼？", useTrade: "亮出行當：{trade}", pharmWinner: "藥劑師：判誰贏？", showNothing: "什麼都不亮", count: "算吧",
     peeked: "你看了 {name} 的牌：{gang} · {trade}。", won: "{name} 贏了", tie: "平手，{name} 從牌堆抽一張", stopped: "{name} 攔下了這場衝突", doctored: "{name} 出手，結果不算數",
-    choiceQ: "你贏了。要看什麼？", peekChoice: "看 {name} 的幫會與行當", takeChoice: "翻 {name} 的行李拿一件", takeWhich: "拿哪一件？",
+    choiceQ: "你贏了。要看什麼？", lightsOnly: "熄燈：這一站只能看，不能拿。", peekChoice: "看 {name} 的幫會與行當", takeChoice: "翻 {name} 的行李拿一件", takeWhich: "拿哪一件？",
     priestPay: "神父攔下了衝突。你要賠 {name} 一件：", overLimit: "行李超過上限，送一件出去：", giveTo: "送給誰？",
     declareTitle: "攤牌", declareText: "你要說：{gang}手上已有{goal}。說錯任何一項，{other}直接贏。",
     declareMine: "你有 {n} 件", declareWho: "其餘的在誰手上？", declareNeed: "還差 {n} 件", declareDrink: "（烈酒可頂一件，若你們人少）",

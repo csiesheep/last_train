@@ -247,10 +247,11 @@ td .row { gap: 4px; flex-wrap: wrap; }
 .gangpick img { width: 84px; height: 48px; object-fit: contain; flex-shrink: 0; }
 .gangpick.brass { border-color: var(--brass-hi); background: rgba(168, 134, 58, 0.1); }
 /* the card a station stop opens with */
-.card.ev { border-color: var(--brass-hi); display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; }
-.card.ev .evart { width: 100%; max-width: 240px; height: 140px; object-fit: cover; border: 1px solid var(--line); border-radius: 2px; }
-.card.ev .g2 { font-size: 28px; letter-spacing: 0.1em; }
-.card.ev .btn { width: 100%; margin-top: 4px; }
+/* The picture's own ground is the card colour, so it needs no frame. */
+.card.stopcard { border-color: var(--brass-hi); display: flex; flex-direction: column; gap: 8px; text-align: center; }
+.card.stopcard .evart { width: 150px; height: 150px; object-fit: cover; align-self: center; border-radius: 2px; }
+.card.stopcard .g2 { font-size: 28px; letter-spacing: 0.1em; }
+.card.stopcard .btn { margin-top: 4px; }
 .thumb.ev { border-color: var(--brass); }
 /* the passenger sheet */
 .face.lg2 { width: 56px; height: 56px; }
