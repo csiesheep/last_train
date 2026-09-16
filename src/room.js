@@ -24,6 +24,7 @@ const STEP_MS = {
 // Pause before a bot acts, by step, so people can follow.
 const BOT_MS = { reveal: 200, turn: 1_200, peek: 900, handLimit: 600, answer: 900, return: 700, codebook: 700, coat: 700, direction: 600, passItems: 400,
   priest: 300, gunman: 300, doctor: 350, priestPay: 600, support: 550, hypnotist: 450, powers: 450, choice: 700, take: 600 };
+const PACE = 1.5; // every beat above takes half as long again, so a bot's turn can be followed
 // Steps everyone answers at once: bots answer together instead of one per beat.
 const SIMULTANEOUS = new Set(["reveal", "priest", "gunman", "doctor", "powers", "passItems"]);
 const GRACE_MS = 15_000;     // a disconnected human's decisions go to the bot after this
@@ -364,7 +365,7 @@ export class Room {
     this.pushViews();
     const need = E.mustAct(st);
     const bots = this.botSeats(need);
-    await this.scheduleAt(bots.length ? Math.min(now + (BOT_MS[step] ?? 600), room.deadline) : room.deadline);
+    await this.scheduleAt(bots.length ? Math.min(now + Math.round((BOT_MS[step] ?? 600) * PACE), room.deadline) : room.deadline);
   }
 
   // The alarm handler: let bots act, or enforce the clock.

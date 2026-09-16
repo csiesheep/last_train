@@ -222,6 +222,9 @@ function freshUi() { return { mode: null, item: null, kind: null, holders: {}, p
 const DELAY = { reveal: 150, turn: 1200, peek: 900, handLimit: 600, answer: 900, return: 700, codebook: 700, coat: 700, direction: 600, passItems: 400,
   priest: 300, gunman: 300, doctor: 350, priestPay: 600, support: 550, hypnotist: 450, powers: 450, choice: 700, take: 600,
   bribe: 450, disguise: 450, yield: 700, event: 500 };
+// The carriage moves at a passenger's pace, not a computer's: every beat above
+// takes half as long again, so a bot's turn can be followed.
+const PACE = 1.5;
 
 function startGame() {
   leaveRoom(true);
@@ -422,7 +425,7 @@ function delayFor(st) {
   const step = st.phase === "scuffle" ? st.scuffle.step : st.phase === "trade" ? st.trade.step : st.phase;
   let d = DELAY[step] ?? 600;
   if (Date.now() < game.flashUntil) d += 1400;
-  return d;
+  return Math.round(d * PACE);
 }
 
 // Bots act one at a time, on a timer, whenever the phase is waiting on them;
