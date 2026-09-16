@@ -280,6 +280,10 @@ td .row { gap: 4px; flex-wrap: wrap; }
 /* the short films, full screen over everything, a tap away from being skipped */
 .film { position: fixed; inset: 0; z-index: 60; background: #000; display: flex; align-items: center; justify-content: center; opacity: 1; transition: opacity 1s ease; }
 .film video { width: 100%; height: 100%; object-fit: cover; display: block; transition: opacity 1s ease; }
+/* a phone held upright is far narrower than the film: fill its height and
+   three quarters of the picture is gone, so the film sits in a band in the
+   middle with black above and below. */
+@media (orientation: portrait) and (max-width: 700px) { .film video { height: 60%; } }
 /* the film goes black first, then the black lifts on the carriage */
 .film.toblack video, .film.toblack .skip { opacity: 0; }
 .film.out { opacity: 0; pointer-events: none; }
