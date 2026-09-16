@@ -170,9 +170,24 @@ function closeFilm(then) {
     setTimeout(() => {
       box.hidden = true;
       box.classList.remove("toblack", "out");
+      // the fade this undoing starts can never finish behind a hidden screen,
+      // and a leftover one holds the next film at nothing: drop it here
+      box.getAnimations().forEach((a) => a.cancel());
       setTimeout(() => { game.hold = false; tick(); }, FADE.settle);
     }, FADE.lift);
   }, FADE.black);
+}
+// The result stays on screen until the player says they have seen it. Then the
+// black closes over the carriage and the film comes up out of the black.
+function playFilmFromBlack(kind, then) {
+  const box = $("film");
+  if (!kind || !filmsOn() || !FILMS[kind]) { if (then) then(); return; }
+  box.hidden = false;
+  box.classList.add("out", "toblack"); // invisible, and the film waiting behind the black
+  box.getAnimations().forEach((a) => a.cancel());
+  void box.offsetWidth;                // the fade needs somewhere to start from
+  box.classList.remove("out");         // the black closes over the result
+  setTimeout(() => { box.classList.remove("toblack"); playFilm(kind, then); }, FADE.black);
 }
 $("film").addEventListener("click", () => endFilm && endFilm());
 $("filmVid").addEventListener("ended", () => endFilm && endFilm());
@@ -193,7 +208,8 @@ const game = {
   ws: null, code: null, lobby: null, closed: false, clock: null, gen: -1, deadline: 0,
   ui: freshUi(), peekSeat: null, result: null, evCard: null, seenCount: null, viewKey: "",
   tut: null,          // the guided game: { seen: { coachKey: true }, pending: coachKey | null }
-  hold: false, filmOver: false, // the screen is turning over after a film; the ending film has played
+  hold: false, filmOver: false, // the screen is turning over after a film; the ending film has been settled
+  filmWait: null,     // the ending film, waiting for the player to say they have read the result
 };
 const curView = () => (game.mode === "solo" ? (game.st ? E.view(game.st, game.me) : null) : game.view);
 const curLegal = () => (game.mode === "solo" ? (game.st ? E.legalActions(game.st, game.me) : []) : game.legal);
@@ -217,7 +233,7 @@ function startGame() {
   game.faces = [setup.face, ...freeFaces(game.rng, [setup.face], E.shuffle).slice(0, n - 1)];
   game.names = soloNames();
   game.log = []; game.logSeen = 0; game.flashUntil = 0; game.ui = freshUi(); game.result = null; game.evCard = null; game.seenCount = null;
-  game.tut = null; game.filmOver = false; game.hold = false;
+  game.tut = null; game.filmOver = false; game.filmWait = null; game.hold = false;
   clearTimeout(game.botTimer);
   show("table");
   tick();
@@ -265,7 +281,7 @@ function startTutorial() {
   game.faces = TUT_FACES.slice();
   game.names = soloNames();
   game.log = []; game.logSeen = 0; game.flashUntil = 0; game.ui = freshUi(); game.result = null; game.evCard = null; game.seenCount = null;
-  game.tut = { seen: {}, pending: null }; game.filmOver = false; game.hold = false;
+  game.tut = { seen: {}, pending: null }; game.filmOver = false; game.filmWait = null; game.hold = false;
   show("table");
   tick();
 }
@@ -379,6 +395,7 @@ function tutorialOverCard(v) {
       h("span", { class: "hint" }, t(won ? "tutorial.endWinText" : "tutorial.endLoseText", TUT_P()))),
     list(t("tutorial.recapLab"), (S.tutorial.recap || []).map((x) => x.replace(/\{(\w+)\}/g, (_, k) => TUT_P()[k] ?? ""))),
     list(t("tutorial.tipsLab"), S.tutorial.tips || []),
+    game.filmWait ? btn(t("table.gotIt"), "p", seenResult) : null,
     btn(t("tutorial.playReal"), "p", () => { setup.n = 6; store.set("lt.n", 6); game.tut = null; startGame(); }),
     h("div", { class: "grid2" },
       h("a", { class: "btn ghost", href: "rules" }, t("nav.rules")),
@@ -538,7 +555,7 @@ function onMsg(m) {
       renderLog(); renderLobbyLog(); break;
     case "view": {
       if (!m.view) { game.view = null; game.legal = []; if (game.lobby) { show("lobby"); renderLobby(); } break; }
-      if (m.gen !== game.gen) { game.gen = m.gen; game.log = game.log.filter((l) => l.room); game.logSeen = 0; game.ui = freshUi(); game.evCard = null; game.seenCount = null; game.filmOver = false; }
+      if (m.gen !== game.gen) { game.gen = m.gen; game.log = game.log.filter((l) => l.room); game.logSeen = 0; game.ui = freshUi(); game.evCard = null; game.seenCount = null; game.filmOver = false; game.filmWait = null; }
       const key = `${m.view.phase}/${m.view.scuffle?.step || m.view.trade?.step || ""}/${m.view.turnNo}/${(m.view.waitingOn || []).join(",")}/${m.view.log.length}`;
       if (key !== game.viewKey) { game.viewKey = key; game.ui = freshUi(); }
       game.view = m.view; game.legal = m.legal || []; game.names = m.names; game.faces = m.faces || []; game.me = m.me; game.deadline = m.deadline || 0;
@@ -747,7 +764,10 @@ function render() {
       // keeps the result on screen, since the others are still there, and so
       // does the tutorial, whose closing page is the point of it.
       const platform = game.mode === "solo" && !game.tut;
-      playFilm(won ? "win" : "lose", platform ? () => { leaveRoom(true); go(""); } : null);
+      const kind = won ? "win" : "lose";
+      const then = platform ? () => { leaveRoom(true); go(""); } : null;
+      const film = filmsOn() && !!FILMS[kind];
+      if (film || then) game.filmWait = { kind: film ? kind : null, then };
     }
   }
   const v = game.result ? frozen(live, game.result) : live;
@@ -1460,6 +1480,13 @@ function eventCard(e) {
     btn(t("table.gotIt"), "p", () => { game.evCard = null; if (game.mode === "solo") tick(); else { render(); netAuto(); } }));
 }
 
+// The player has read the result: now the film may start.
+function seenResult() {
+  const w = game.filmWait;
+  if (!w) return;
+  game.filmWait = null; // the card stays as it is behind the closing black
+  playFilmFromBlack(w.kind, w.then);
+}
 function overCard(v) {
   if (game.tut) return tutorialOverCard(v);
   const wrap = h("div", { class: "stack" });
@@ -1481,7 +1508,8 @@ function overCard(v) {
     table.append(h("tr", {}, h("td", { class: "nowrap" }, h("div", { class: "row", style: "gap:6px;flex-wrap:nowrap" }, faceEl(s, "xs"), h("span", {}, nameOf(s) + (s === game.me ? ` (${t("table.you")})` : "")))), h("td", { class: "nowrap " + (sd.gang === E.TIMEKEEPERS ? "watch" : "seal") }, gangName(sd.gang)), h("td", {}, h("button", { type: "button", class: "linkish plain", onclick: () => openTradeSheet(sd.trade, s) }, tradeName(sd.trade))), h("td", { class: "icons" }, h("div", { class: "row" }, ...sd.hand.map((x) => thumb(x.kind, () => openItemSheet(x.kind)))))));
   }
   wrap.append(h("div", { class: "card" }, table));
-  if (game.mode === "solo") wrap.append(btn(t("table.again"), "p", () => startGame()));
+  if (game.filmWait) wrap.append(btn(t("table.gotIt"), "p", seenResult));
+  else if (game.mode === "solo") wrap.append(btn(t("table.again"), "p", () => startGame()));
   else if (game.me === 0) wrap.append(btn(t("table.again"), "p", () => send({ type: "rematch" })));
   else wrap.append(h("p", { class: "hint center" }, t("lobby.rematchWait")));
   return wrap;
