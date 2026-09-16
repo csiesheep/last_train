@@ -140,7 +140,7 @@ $("filmChk").addEventListener("change", (e) => { setup.film = e.target.checked; 
 const FILMS = { board: "video/board.mp4", win: "video/win.mp4", lose: "video/lose.mp4" };
 // How the screen turns over when a film ends: to black, then the black lifts on
 // the carriage, and only after a breath does anybody move.
-const FADE = { black: 420, lift: 700, settle: 1000 };
+const FADE = { black: 1000, lift: 1000, settle: 1000 };
 let endFilm = null; // what to do once the film is done, while one is playing
 function filmsOn() {
   if (!setup.film || game.auto) return false;
@@ -743,7 +743,11 @@ function render() {
     if (!game.filmOver && game.me !== null && live.me) {
       game.filmOver = true;
       const won = typeof live.winner === "number" ? live.winner === game.me : live.me.gang === live.winner;
-      playFilm(won ? "win" : "lose");
+      // Solo, the journey ends where it started: the platform. A compartment
+      // keeps the result on screen, since the others are still there, and so
+      // does the tutorial, whose closing page is the point of it.
+      const platform = game.mode === "solo" && !game.tut;
+      playFilm(won ? "win" : "lose", platform ? () => { leaveRoom(true); go(""); } : null);
     }
   }
   const v = game.result ? frozen(live, game.result) : live;
@@ -936,7 +940,12 @@ function openPassengerSheet(v, seat) {
   const tradeDef = tradeKnown ? E.TRADE_BY_ID[tradeKnown] : null;
   openSheet(
     h("div", { class: "row", style: "gap:12px" }, faceEl(seat, "lg2"), h("div", { class: "stack", style: "gap:2px;flex:1;min-width:0" }, h("span", { class: "disp ttl" }, nameOf(seat)), h("span", { class: "hint" }, t("table.stop", { n: num(Math.max(1, Math.ceil(v.turnNo / v.n))) }) + " · " + t("sheet.bags", { n: sd.items }))),
-      h("div", { class: "stack", style: "gap:2px;align-items:flex-end" }, h("span", { class: "hint" }, t("sheet.gang")), gangKnown ? h("span", { class: "tag " + (gangKnown === E.TIMEKEEPERS ? "watch" : "seal") }, gangName(gangKnown)) : q())),
+      h("div", { class: "stack", style: "gap:4px;align-items:flex-end" }, h("span", { class: "hint" }, t("sheet.gang")),
+        // the token says which gang it is faster than the name does
+        ...(gangKnown
+          ? [itemImg(E.GOAL[gangKnown], "thumb56 gangtok " + (gangKnown === E.TIMEKEEPERS ? "watch" : "seal")),
+             h("span", { class: "tag " + (gangKnown === E.TIMEKEEPERS ? "watch" : "seal") }, gangName(gangKnown))]
+          : [q()]))),
     h("div", { class: "rule" }),
     h("span", { class: "hint" }, t("sheet.trade")),
     tradeKnown ? h("div", { class: "row", style: "gap:10px" }, h("button", { type: "button", class: "thumbbtn", onclick: () => openTradeSheet(tradeKnown, seat) }, tradeImg(tradeKnown, "thumb56")), h("div", { class: "stack", style: "gap:0" }, h("b", {}, tradeName(tradeKnown)), h("span", { class: "hint" }, t(tradeDef && tradeDef.once ? "reveal.once" : "reveal.always") + (sd.tradeUsed ? " · " + t("sheet.used") : "")))) : q(),
