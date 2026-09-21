@@ -97,6 +97,16 @@ export default {
     first_class_ticket: "With this and any three watches or seals in your own bag, leave the train alone: a solo win.",
     gold_bar: "When you lose a scuffle, you may hand the gold bar to the winner instead: they take it and may neither look nor take anything else.",
   },
+  journey: {
+    turn1: "{n} turn", turns: "{n} turns", note1: "{n} note", notes: "{n} notes", noNotes: "no notes", now: "now", none: "no event",
+    all: "All", scuffle: "Scuffles", trade: "Trades", mine: "My notes", about: "About…", aboutName: "About {name}",
+    onlyYou: "ONLY YOU KNOW", empty: "Nothing here matches.", nothing: "The train has not left yet.",
+    note: {
+      gang: "{name}'s gang card: {gang}.", trade: "{name}'s trade: {trade}.", hand: "{name}'s luggage: {items}.", handEmpty: "{name} holds nothing.",
+      got: "{name} gave you: {item}.", gave: "You gave {name}: {item}.", lost: "{name} took from you: {item}.", offered: "{name} held out: {item}.",
+      pile: "You looked through the pile, top first: {items}.",
+    },
+  },
   events: {
     head: "something happened", dining: "Dining car", customs: "Customs check", boiler: "Boiler up", password: "Passwords", speaker: "Announcement", lights: "Lights out",
     diningSaw: "On top of the pile: {items}.", speakerSays: "The pile still holds {w} watches and {s} seals, plus {c} suitcases.",
@@ -138,7 +148,7 @@ export default {
     declareMine: "You hold {n}", declareWho: "Who holds the rest?", declareNeed: "{n} more needed", declareDrink: "(a strong drink covers one, if your gang is the smaller)",
     declareGo: "Those are the ones. Show it", declareNone: "You need one of your own gang's items first.", declareBlocked: "The poison-pen letter's holder may not show their hand.",
     solo: "Show the first-class ticket and leave alone", again: "Board again", lobby: "Back to the platform", continue: "Continue",
-    tapHint: "tap one for its text", talk: "Carriage talk", talkRecent: "last {n}", win: "wins", log: "Journey log", logCount: "{stops} stops · {n} events", gotIt: "Got it",
+    tapHint: "tap one for its text", talk: "Carriage talk", talkRecent: "last {n}", win: "wins", log: "Journey log", gotIt: "Got it",
     res: { won: "{a} won", lost: "{a} lost", tie: "A tie", stopped: "Stopped", doctored: "Cancelled", peek: "{w} saw {l}'s gang and trade.", take: "{w} took a bag from {l}.", drew: "{a} draws from the pile.", seen: "You saw: {gang} · {trade}.", taken: "They took the {item}.", stoppedBy: "{p} stopped the scuffle.", doctoredBy: "{d} stepped in; it does not count.", dice: "{name} (Gambler) tossed +{n}.", bribe: "{l} paid the gold bar: {w} neither looked nor took anything else.", yield: "{l} (Porter) chose the bag {w} took." },
     together: "everyone at once", bagPick: "Tap a bag first",
     customsQ: "Hand one bag face down to {name} on your left; they look and hand it back.", customsGo: "Hand over the {item}",

@@ -97,6 +97,16 @@ export default {
     first_class_ticket: "手上有它加任意三件懷錶或玉印，可以獨自下車。",
     gold_bar: "你在衝突中輸了時，可以把金條交給贏家：他拿走金條，不能再看、也不能拿別的。",
   },
+  journey: {
+    turn1: "{n} 手", turns: "{n} 手", note1: "{n} 則筆記", notes: "{n} 則筆記", noNotes: "沒有筆記", now: "進行中", none: "無事",
+    all: "全部", scuffle: "衝突", trade: "交換", mine: "我的筆記", about: "關於…", aboutName: "關於 {name}",
+    onlyYou: "只有你知道", empty: "這裡沒有符合的紀錄。", nothing: "車還沒開。",
+    note: {
+      gang: "{name} 的幫會牌：{gang}。", trade: "{name} 的行當：{trade}。", hand: "{name} 的行李：{items}。", handEmpty: "{name} 空手。",
+      got: "{name} 給你：{item}。", gave: "你給 {name}：{item}。", lost: "{name} 從你手上拿走：{item}。", offered: "{name} 遞過來的是：{item}。",
+      pile: "你看了牌堆，由上到下：{items}。",
+    },
+  },
   events: {
     head: "車上出了事", dining: "餐車", customs: "海關驗關", boiler: "鍋爐加壓", password: "暗號", speaker: "車廂廣播", lights: "熄燈",
     diningSaw: "牌堆最上面是：{items}。", speakerSays: "牌堆裡還有 {w} 只懷錶、{s} 枚玉印，另有 {c} 只皮箱。",
@@ -135,7 +145,7 @@ export default {
     declareMine: "你有 {n} 件", declareWho: "其餘的在誰手上？", declareNeed: "還差 {n} 件", declareDrink: "（烈酒可頂一件，若你們人少）",
     declareGo: "就是他們，攤牌", declareNone: "你手上得先有一件自己的。", declareBlocked: "持有黑函不能攤牌。",
     solo: "亮出頭等票，獨自下車", again: "再搭一班", lobby: "回月台", continue: "繼續",
-    tapHint: "點一下看說明", talk: "車廂閒話", talkRecent: "最近 {n} 句", win: "贏", log: "行車紀錄", logCount: "{stops}站 · {n} 件事", gotIt: "知道了",
+    tapHint: "點一下看說明", talk: "車廂閒話", talkRecent: "最近 {n} 句", win: "贏", log: "行車紀錄", gotIt: "知道了",
     res: { won: "{a} 贏了", lost: "{a} 輸了", tie: "平手", stopped: "被攔下", doctored: "結果取消", peek: "{w} 看了 {l} 的幫會與行當。", take: "{w} 從 {l} 手上拿走一件。", drew: "{a} 從牌堆抽一張。", seen: "你看到：{gang} · {trade}。", taken: "被拿走的是 {item}。", stoppedBy: "{p} 攔下了這場衝突。", doctoredBy: "{d} 出手，結果不算數。", dice: "{name}（賭徒）擲出 +{n}。", bribe: "{l} 交出金條消災：{w} 沒看牌，也沒拿別的。", yield: "{l}（搬運工）挑了一件給 {w}。" },
     together: "同時進行", bagPick: "先點一件行李",
     customsQ: "挑一件蓋著交給左鄰 {name}，他看過就還你。", customsGo: "交出 {item}",

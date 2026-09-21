@@ -236,7 +236,7 @@ function startGame() {
   game.faces = [setup.face, ...freeFaces(game.rng, [setup.face], E.shuffle).slice(0, n - 1)];
   game.names = soloNames();
   game.log = []; game.logSeen = 0; game.flashUntil = 0; game.ui = freshUi(); game.result = null; game.evCard = null; game.seenCount = null;
-  game.tut = null; game.filmOver = false; game.filmWait = null; game.hold = false;
+  game.tut = null; game.filmOver = false; game.filmWait = null; game.hold = false; resetJourney();
   clearTimeout(game.botTimer);
   show("table");
   tick();
@@ -284,7 +284,7 @@ function startTutorial() {
   game.faces = TUT_FACES.slice();
   game.names = soloNames();
   game.log = []; game.logSeen = 0; game.flashUntil = 0; game.ui = freshUi(); game.result = null; game.evCard = null; game.seenCount = null;
-  game.tut = { seen: {}, pending: null }; game.filmOver = false; game.filmWait = null; game.hold = false;
+  game.tut = { seen: {}, pending: null }; game.filmOver = false; game.filmWait = null; game.hold = false; resetJourney();
   show("table");
   tick();
 }
@@ -558,7 +558,7 @@ function onMsg(m) {
       renderLog(); renderLobbyLog(); break;
     case "view": {
       if (!m.view) { game.view = null; game.legal = []; if (game.lobby) { show("lobby"); renderLobby(); } break; }
-      if (m.gen !== game.gen) { game.gen = m.gen; game.log = game.log.filter((l) => l.room); game.logSeen = 0; game.ui = freshUi(); game.evCard = null; game.seenCount = null; game.filmOver = false; game.filmWait = null; }
+      if (m.gen !== game.gen) { game.gen = m.gen; game.log = game.log.filter((l) => l.room); game.logSeen = 0; game.ui = freshUi(); game.evCard = null; game.seenCount = null; game.filmOver = false; game.filmWait = null; resetJourney(); }
       const key = `${m.view.phase}/${m.view.scuffle?.step || m.view.trade?.step || ""}/${m.view.turnNo}/${(m.view.waitingOn || []).join(",")}/${m.view.log.length}`;
       if (key !== game.viewKey) { game.viewKey = key; game.ui = freshUi(); }
       game.view = m.view; game.legal = m.legal || []; game.names = m.names; game.faces = m.faces || []; game.me = m.me; game.deadline = m.deadline || 0;
@@ -1085,35 +1085,160 @@ $("glogHd").addEventListener("click", () => { folds.log = !folds.log; store.set(
 // The journey log: the engine's public record, grouped by stop, the actor's face on the left,
 // the items involved as small pictures below.
 const actorOf = (e) => e.first ?? e.seat ?? e.from ?? e.attacker ?? e.winner ?? null;
+
+// ---------- the journey log ----------
+// By stop, newest first, and a stop folds when its name is tapped. Every turn
+// keeps its number. What this seat alone saw -- a hand it looked through, what
+// it was handed, what was taken from it -- is slipped in under the turn it
+// happened on, so the record reads the way the player lived it. Nobody else's
+// log has those lines: they come from this seat's own knowledge list.
+const journey = { filter: "all", person: null, picking: false, open: {} };
+function resetJourney() { journey.filter = "all"; journey.person = null; journey.picking = false; journey.open = {}; }
+const stopOf = (turn, n) => Math.max(1, Math.ceil(turn / n));
+const LOCK_SVG = '<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="7.5" width="9" height="6" rx="1"/><path d="M5.5 7.5V5.5a2.5 2.5 0 015 0v2"/></svg>';
+
+// The thumbnails under a public entry: what was announced, shown or paid.
+function entryTags(e) {
+  const tags = [];
+  if (e.type === "event" && e.kind) tags.push(thumb(e.kind, () => openItemSheet(e.kind)));
+  for (const k of e.kinds || []) tags.push(thumb(k, () => openItemSheet(k)));
+  for (const a of e.announced || []) tags.push(thumb(a.kind, () => openItemSheet(a.kind)));
+  if (e.type !== "event" && e.kind) tags.push(thumb(e.kind, () => openItemSheet(e.kind)));
+  if (e.choice === "bribe") tags.push(thumb("gold_bar", () => openItemSheet("gold_bar")));
+  for (const [sid, x] of Object.entries(e.shown || {})) {
+    const side = Number(sid) === e.attacker || e.support?.[sid] === "attacker" ? "atk" : Number(sid) === e.defender || e.support?.[sid] === "defender" ? "def" : "";
+    for (const k of x.items || []) { const b = thumb(k, () => openItemSheet(k)); if (side) b.firstChild.classList.add(side); tags.push(b); }
+    if (x.trade) tags.push(h("button", { type: "button", class: "thumbbtn", title: tradeName(x.trade), onclick: () => openTradeSheet(x.trade, Number(sid)) }, tradeImg(x.trade, "thumb " + side)));
+  }
+  return tags;
+}
+
+// What this seat alone learned, by turn. What the whole carriage was shown (a
+// password, the dining car) is already in the public record, so it is not here.
+function notesByTurn(v) {
+  const by = {};
+  const join = (items) => items.map((x) => itemName(x.kind)).join(lang === "en" ? ", " : "、");
+  // an offer that was taken up is told as what you got, not twice
+  const got = new Set(v.knowledge.filter((k) => k.k === "got").map((k) => k.at + ":" + k.id));
+  for (const k of v.knowledge) {
+    let line = null;
+    const N = (key, p, kinds = [], seats = [], trade = null) => { line = { text: t("journey.note." + key, p), kinds, seats, trade }; };
+    if (k.k === "gang") N("gang", { name: nameOf(k.seat), gang: gangName(k.gang) }, [], [k.seat]);
+    else if (k.k === "trade") N("trade", { name: nameOf(k.seat), trade: tradeName(k.trade) }, [], [k.seat], { id: k.trade, seat: k.seat });
+    else if (k.k === "hand") N(k.items.length ? "hand" : "handEmpty", { name: nameOf(k.seat), items: join(k.items) }, k.items.map((x) => x.kind), [k.seat]);
+    else if (k.k === "got") N("got", { name: nameOf(k.from), item: itemName(k.kind) }, [k.kind], [k.from]);
+    else if (k.k === "gave") N("gave", { name: nameOf(k.to), item: itemName(k.kind) }, [k.kind], [k.to]);
+    else if (k.k === "lost") N("lost", { name: nameOf(k.to), item: itemName(k.kind) }, [k.kind], [k.to]);
+    else if (k.k === "offered" && !got.has(k.at + ":" + k.id)) N("offered", { name: nameOf(k.from), item: itemName(k.kind) }, [k.kind], [k.from]);
+    else if (k.k === "pile") N("pile", { items: join(k.items) }, k.items.map((x) => x.kind), []);
+    if (line) (by[k.at] = by[k.at] || []).push(line);
+  }
+  return by;
+}
+const JOURNEY_KIND = { scuffle: "scuffle", trade: "trade", gift: "trade", demand: "trade", timetable: "trade", codebook: "trade", coat: "trade" };
+function involves(e, s) {
+  if ([e.first, e.seat, e.from, e.to, e.target, e.partner, e.attacker, e.defender, e.winner, e.stopped, e.doctored, e.pharmacist].includes(s)) return true;
+  if (e.support && e.support[s] && e.support[s] !== "out") return true;
+  return !!(e.shown && e.shown[s]);
+}
+
 function renderJourney() {
   const v = curView(); if (!v) return;
   applyFolds();
   const events = v.log;
-  const stops = events.length ? Math.max(1, Math.ceil(events[events.length - 1].t / v.n)) : 0;
+  const notes = game.me === null ? {} : notesByTurn(v);
+  const noteCount = Object.values(notes).reduce((a, b) => a + b.length, 0);
+  const played = (list) => new Set(list.filter((e) => e.type !== "event" && e.type !== "start").map((e) => e.t)).size;
   const lastText = events.length ? describe(events[events.length - 1]) : "";
-  $("glogPreview").textContent = folds.log ? t("table.logCount", { stops: num(stops), n: events.length }) : lastText;
+  const turnsText = (n) => t(n === 1 ? "journey.turn1" : "journey.turns", { n });
+  const notesText = (n) => (n ? t(n === 1 ? "journey.note1" : "journey.notes", { n }) : t("journey.noNotes"));
+  $("glogPreview").textContent = folds.log ? turnsText(played(events)) + (game.me === null ? "" : " · " + notesText(noteCount)) : lastText;
+  // the list is rebuilt on every move the carriage makes: keep the reader's place
+  const keepY = $("glogBody").scrollTop;
   const body = clear($("glogBody"));
   if (!folds.log) return;
-  let stop = 0;
-  for (const e of events) {
-    const st = Math.max(1, Math.ceil(e.t / v.n));
-    if (st !== stop) { stop = st; body.append(h("div", { class: "stopline" }, h("span", {}, t("table.stop", { n: num(st) })), h("span", { class: "ln" }))); }
-    const who = e.type === "event" ? null : actorOf(e);
-    const tags = [];
-    if (e.type === "event" && e.kind) tags.push(thumb(e.kind, () => openItemSheet(e.kind)));
-    for (const k of e.kinds || []) tags.push(thumb(k, () => openItemSheet(k)));
-    for (const a of e.announced || []) tags.push(thumb(a.kind, () => openItemSheet(a.kind)));
-    if (e.kind) tags.push(thumb(e.kind, () => openItemSheet(e.kind)));
-    if (e.choice === "bribe") tags.push(thumb("gold_bar", () => openItemSheet("gold_bar")));
-    for (const [sid, x] of Object.entries(e.shown || {})) {
-      const side = Number(sid) === e.attacker || e.support?.[sid] === "attacker" ? "atk" : Number(sid) === e.defender || e.support?.[sid] === "defender" ? "def" : "";
-      for (const k of x.items || []) { const b = thumb(k, () => openItemSheet(k)); b.firstChild.classList.add(side); tags.push(b); }
-      if (x.trade) { const b = h("button", { type: "button", class: "thumbbtn", title: tradeName(x.trade), onclick: () => openTradeSheet(x.trade, Number(sid)) }, tradeImg(x.trade, "thumb " + side)); tags.push(b); }
+  const F = journey.filter, who = journey.person;
+
+  // the filters
+  const chip = (key, label, cls = "") => h("button", { type: "button", class: "jchip " + cls + (F === key ? " on" : ""),
+    onclick: () => {
+      // "about…" opens the row of faces; tapped again while it is filtering, it lets go
+      if (key !== "person") { journey.filter = key; journey.picking = false; }
+      else if (F === "person") { journey.filter = "all"; journey.person = null; journey.picking = false; }
+      else journey.picking = !journey.picking;
+      renderJourney();
+    } }, label);
+  const chips = h("div", { class: "jchips" }, chip("all", t("journey.all")), chip("scuffle", t("journey.scuffle")), chip("trade", t("journey.trade")));
+  if (game.me !== null) chips.append(chip("notes", t("journey.mine"), "note"));
+  chips.append(chip("person", who === null || F !== "person" ? t("journey.about") : t("journey.aboutName", { name: nameOf(who) })));
+  body.append(chips);
+  if (journey.picking) {
+    const row = h("div", { class: "jfaces" });
+    for (let s = 0; s < v.n; s++) {
+      if (s === game.me) continue;
+      row.append(h("button", { type: "button", class: who === s && F === "person" ? "on" : "", title: nameOf(s),
+        onclick: () => { journey.person = s; journey.filter = "person"; journey.picking = false; renderJourney(); } }, faceEl(s, "xs"), h("span", {}, nameOf(s))));
     }
-    body.append(h("div", { class: "ev" + (e.type === "scuffle" || e.type === "declare" || e.type === "solo" || (e.type === "event" && e.id) ? " hot" : "") },
-      e.type === "event" ? eventImg(e.id, "thumb ev") : who != null ? faceEl(who, "xs") : h("span", {}),
-      h("div", {}, describe(e), tags.length ? h("div", { class: "tags" }, ...tags) : null)));
+    body.append(row);
   }
+
+  // every turn that has something to say, oldest first, bucketed by stop
+  const turns = [...new Set([...events.map((e) => e.t), ...Object.keys(notes).map(Number)])].sort((a, b) => a - b);
+  const latest = stopOf(turns.length ? turns[turns.length - 1] : 1, v.n);
+  const stops = new Map();
+  for (const T of turns) {
+    const st = stopOf(T, v.n);
+    if (!stops.has(st)) stops.set(st, { event: undefined, turns: [] });
+    const mine = events.filter((e) => e.t === T);
+    const ev = mine.find((e) => e.type === "event" && !e.done);
+    if (ev) stops.get(st).event = ev;
+    stops.get(st).turns.push({ T, entries: mine, notes: notes[T] || [] });
+  }
+
+  let shown = 0;
+  for (const st of [...stops.keys()].sort((a, b) => b - a)) {
+    const S = stops.get(st);
+    const rows = [];
+    for (const { T, entries, notes: ns } of S.turns) {
+      let es = entries, keep = ns;
+      if (F === "scuffle" || F === "trade") { es = entries.filter((e) => JOURNEY_KIND[e.type] === F); keep = es.length ? ns : []; }
+      else if (F === "notes") { if (!ns.length) es = []; else es = entries.filter((e) => e.type !== "event"); }
+      else if (F === "person") { es = entries.filter((e) => involves(e, who)); keep = ns.filter((n) => n.seats.includes(who)); }
+      let numbered = false;
+      for (const e of es) {
+        const isEvent = e.type === "event";
+        const actor = isEvent ? null : actorOf(e);
+        const tags = entryTags(e);
+        const hot = e.type === "scuffle" || e.type === "declare" || e.type === "solo" || (isEvent && e.id);
+        rows.push(h("div", { class: "jturn" + (hot ? " hot" : "") },
+          h("span", { class: "no lat" }, isEvent || e.type === "start" || numbered ? "" : String(T)),
+          isEvent ? eventImg(e.id, "thumb ev") : actor != null ? faceEl(actor, "xs") : h("span", {}),
+          h("div", {}, describe(e), tags.length ? h("div", { class: "tags" }, ...tags) : null)));
+        if (!isEvent && e.type !== "start") numbered = true;
+      }
+      if (keep.length) {
+        rows.push(h("div", { class: "jnote" }, h("span", { class: "lk", html: LOCK_SVG + "<span>" + t("journey.onlyYou") + "</span>" }),
+          ...keep.map((n) => h("div", { class: "ln" }, h("span", {}, n.text),
+            n.kinds.length || n.trade ? h("div", { class: "tags" },
+              ...n.kinds.map((k) => thumb(k, () => openItemSheet(k))),
+              n.trade ? h("button", { type: "button", class: "thumbbtn", title: tradeName(n.trade.id), onclick: () => openTradeSheet(n.trade.id, n.trade.seat) }, tradeImg(n.trade.id, "thumb")) : null) : null))));
+      }
+    }
+    if (!rows.length) continue;
+    shown++;
+    // a stop stays shut unless it is the one the train is at, or a filter found something in it
+    const open = journey.open[st] ?? (F === "all" ? st === latest : true);
+    const nTurns = played(S.turns.flatMap((x) => x.entries)), nNotes = S.turns.reduce((a, x) => a + x.notes.length, 0);
+    const sum = (st === latest && v.phase !== "over" ? t("journey.now") + " · " : "") + turnsText(nTurns) + " · " + notesText(nNotes);
+    body.append(h("div", { class: "jstop" + (open ? " open" : "") + (st === latest ? " now" : "") },
+      h("button", { type: "button", class: "jhead", "aria-expanded": open ? "true" : "false", onclick: () => { journey.open[st] = !open; renderJourney(); } },
+        h("span", { class: "name" }, t("table.stop", { n: num(st) })),
+        S.event !== undefined ? h("span", { class: "tag" + (S.event.id ? " turn" : "") }, S.event.id ? t("events." + S.event.id) : t("journey.none")) : null,
+        h("span", { class: "sum" }, game.me === null ? turnsText(nTurns) : sum)),
+      open ? h("div", { class: "jbody" }, ...rows) : null));
+  }
+  if (!shown) body.append(h("p", { class: "hint jempty" }, t(events.length ? "journey.empty" : "journey.nothing")));
+  body.scrollTop = keepY;
 }
 
 // ---------- the panel ----------
