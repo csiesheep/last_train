@@ -101,6 +101,10 @@ export default {
     turn1: "{n} 手", turns: "{n} 手", note1: "{n} 則筆記", notes: "{n} 則筆記", noNotes: "沒有筆記", now: "進行中", none: "無事",
     all: "全部", scuffle: "衝突", trade: "交換", mine: "我的筆記", about: "關於…", aboutName: "關於 {name}",
     onlyYou: "只有你知道", empty: "這裡沒有符合的紀錄。", nothing: "車還沒開。",
+    tabLog: "紀錄", tabSeen: "誰看過誰", seenOf: "被誰看過", seenBy: "看過誰", you: "你", gangK: "幫會", tradeK: "行當",
+    nobody: "沒人看過", noOne: "還沒看過誰", public: "公開：{trade}", stale: "之後換過",
+    via: { monocle: "單片鏡", codebook: "密碼本" },
+    seenHint: "只算全車都看得到的事：衝突贏家選「看」、有人換出單片鏡、密碼本互換、行當亮在桌上。別人看到了什麼你不會知道，只知道他看過；你自己看到的會寫出來。",
     note: {
       gang: "{name} 的幫會牌：{gang}。", trade: "{name} 的行當：{trade}。", hand: "{name} 的行李：{items}。", handEmpty: "{name} 空手。",
       got: "{name} 給你：{item}。", gave: "你給 {name}：{item}。", lost: "{name} 從你手上拿走：{item}。", offered: "{name} 遞過來的是：{item}。",

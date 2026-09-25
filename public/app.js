@@ -9,6 +9,8 @@ import { sayAction, sayResult } from "./shared/talk.js";
 import en from "./i18n/en.js";
 import zh from "./i18n/zh-Hant.js";
 import { PASSENGERS, FACE_IDS, isFace, passengerName, freeFaces } from "./shared/passengers.js";
+import { DWELL, moveTier } from "./shared/pace.js";
+import { looksFromLog, isStale } from "./shared/seen.js";
 
 const LANGS = { en, "zh-Hant": zh };
 const $ = (id) => document.getElementById(id);
@@ -204,7 +206,7 @@ const game = {
   st: null,           // solo: the full engine state
   view: null, legal: [], // net: this seat's view and legal actions from the room
   me: 0, names: [], faces: [], level: "normal", rng: E.makeRng(E.randomSeed()), botTimer: null, netTimer: null,
-  log: [], logSeen: 0, flashUntil: 0, auto: false,
+  log: [], logSeen: 0, auto: false, lastTier: "silent", says: [], sayTimer: null, sayTip: null,
   ws: null, code: null, lobby: null, closed: false, clock: null, gen: -1, deadline: 0,
   ui: freshUi(), peekSeat: null, result: null, evCard: null, seenCount: null, viewKey: "",
   tut: null,          // the guided game: { seen: { coachKey: true }, pending: coachKey | null }
@@ -219,12 +221,9 @@ const sess = {
   set(k, v) { try { sessionStorage.setItem(k, v); } catch {} },
 };
 function freshUi() { return { mode: null, item: null, kind: null, holders: {}, picks: [], showItems: new Set(), showTrade: false, winner: null, announce: true }; }
-const DELAY = { reveal: 150, turn: 1200, peek: 900, handLimit: 600, answer: 900, return: 700, codebook: 700, coat: 700, direction: 600, passItems: 400,
-  priest: 300, gunman: 300, doctor: 350, priestPay: 600, support: 550, hypnotist: 450, powers: 450, choice: 700, take: 600,
-  bribe: 450, disguise: 450, yield: 700, event: 500 };
-// The carriage moves at a passenger's pace, not a computer's: every beat above
-// takes half as long again, so a bot's turn can be followed.
-const PACE = 1.5;
+// How long the table holds still after each move: see shared/pace.js. A copy,
+// so the self-playing check mode can run it at speed.
+const WAIT = { ...DWELL };
 
 function startGame() {
   leaveRoom(true);
@@ -235,7 +234,7 @@ function startGame() {
   game.me = 0; game.level = setup.level;
   game.faces = [setup.face, ...freeFaces(game.rng, [setup.face], E.shuffle).slice(0, n - 1)];
   game.names = soloNames();
-  game.log = []; game.logSeen = 0; game.flashUntil = 0; game.ui = freshUi(); game.result = null; game.evCard = null; game.seenCount = null;
+  game.log = []; game.logSeen = 0; game.lastTier = "silent"; game.says = []; game.sayTip = null; game.ui = freshUi(); game.result = null; game.evCard = null; game.seenCount = null;
   game.tut = null; game.filmOver = false; game.filmWait = null; game.hold = false; resetJourney();
   clearTimeout(game.botTimer);
   show("table");
@@ -283,7 +282,7 @@ function startTutorial() {
   game.me = 0; game.level = "normal";
   game.faces = TUT_FACES.slice();
   game.names = soloNames();
-  game.log = []; game.logSeen = 0; game.flashUntil = 0; game.ui = freshUi(); game.result = null; game.evCard = null; game.seenCount = null;
+  game.log = []; game.logSeen = 0; game.lastTier = "silent"; game.says = []; game.sayTip = null; game.ui = freshUi(); game.result = null; game.evCard = null; game.seenCount = null;
   game.tut = { seen: {}, pending: null }; game.filmOver = false; game.filmWait = null; game.hold = false; resetJourney();
   show("table");
   tick();
@@ -422,10 +421,8 @@ function autoAnswer(st, legal) {
   return null;
 }
 function delayFor(st) {
-  const step = st.phase === "scuffle" ? st.scuffle.step : st.phase === "trade" ? st.trade.step : st.phase;
-  let d = DELAY[step] ?? 600;
-  if (Date.now() < game.flashUntil) d += 1400;
-  return Math.round(d * PACE);
+  if (st.phase === "reveal") return 225; // bots are ready at once; the wait is the player reading their card
+  return WAIT[game.lastTier] ?? WAIT.silent;
 }
 
 // Bots act one at a time, on a timer, whenever the phase is waiting on them;
@@ -474,8 +471,10 @@ function humanAct(a) {
   step(a);
 }
 function step(a) {
+  const before = game.st;
   try { game.st = E.apply(game.st, a); }
   catch (err) { console.error(err, a); tick(); return; }
+  game.lastTier = moveTier(before, game.st);
   game.ui = freshUi();
   afterStep();
   tick();
@@ -489,7 +488,6 @@ function afterStep() {
     addSys(describe(e), e.type === "scuffle" || e.type === "declare" || e.type === "solo");
     if (e.type === "scuffle" && !game.auto) game.result = e;
     if (e.type === "event" && e.id && !e.done && !game.auto) game.evCard = e;
-    if (e.type === "scuffle" || e.type === "declare") game.flashUntil = Date.now() + 1500;
     for (let s = 0; s < st.n; s++) {
       if (s === game.me && !game.auto) continue;
       const line = sayResult(e, s, { rng: game.rng, names: game.names, T: S.talk });
@@ -499,7 +497,18 @@ function afterStep() {
 }
 
 // ---------- log lines ----------
-function addSay(seat, text) { game.log.push({ seat, text, entry: null }); renderLog(); }
+function addSay(seat, text) { game.log.push({ seat, text, entry: null }); noteSay(seat, text); renderLog(); }
+// A line said at the table also shows over the speaker for a few seconds.
+const SAY_MS = 4000;
+function noteSay(seat, text) {
+  if (seat === null || seat === undefined) return;
+  const now = Date.now();
+  game.says = game.says.filter((x) => now - x.at < SAY_MS && x.seat !== seat);
+  game.says.push({ seat, text, at: now });
+  clearTimeout(game.sayTimer);
+  game.sayTimer = setTimeout(renderSays, SAY_MS + 50);
+  renderSays();
+}
 function addSys(text, hot = false, entry = null) { game.log.push({ seat: null, text, hot, entry }); renderLog(); }
 function rebuildLog() {
   // after a language switch, redo the engine's lines in the new language
@@ -555,6 +564,7 @@ function onMsg(m) {
       renderLog(); renderLobbyLog(); break;
     case "say":
       game.log.push(roomLine(m));
+      if (!m.sys) noteSay(m.seat, m.text);
       renderLog(); renderLobbyLog(); break;
     case "view": {
       if (!m.view) { game.view = null; game.legal = []; if (game.lobby) { show("lobby"); renderLobby(); } break; }
@@ -856,6 +866,7 @@ function renderSeats(v, legal) {
   if (box.dataset.sig === sig) return;
   box.dataset.sig = sig;
   clear(box);
+  box._pos = [];
   const counted = !!f && COUNTED.includes(f.step);
   const tally = (side) => 1 + Object.values(f.support).filter((x) => x === side).length;
   const sw = f ? (counted ? f.swords : tally("attacker")) : 0, sh = f ? (counted ? f.shields : tally("defender")) : 0;
@@ -904,6 +915,52 @@ function renderSeats(v, legal) {
       h("span", { class: "plate" }, nameOf(s) + you), stat);
     if (shown) shown.classList.add(x <= CX ? "l" : "r");
     box.append(el);
+    box._pos[s] = { x, y, px: big ? size[1] : size[0] };
+  }
+  box._n = n;
+  renderSays();
+}
+
+// Who is talking, drawn over the ring. Up to six seats the words themselves sit
+// in a bubble by the speaker, leaning away from the middle of the table so the
+// turn line stays readable, and never more than two at once. From seven seats
+// the faces are too close for words: the speaker gets a small mark, and a tap on
+// the mark opens the bubble. The line is in the carriage talk either way.
+function renderSays() {
+  const box = $("seats");
+  if (!box || !box._pos) return;
+  box.querySelectorAll(".say").forEach((el) => el.remove());
+  const now = Date.now();
+  game.says = game.says.filter((x) => now - x.at < SAY_MS);
+  if (!game.says.length) { game.sayTip = null; return; }
+  const W = 346, H = 336, CX = 173, few = box._n <= 6;
+  const bubble = (x0, cls) => {
+    const p = box._pos[x0.seat]; if (!p) return null;
+    const el = h("div", { class: "say bub", "aria-hidden": "true" }, x0.text);
+    el.style.animationDelay = -(now - x0.at) + "ms";
+    if (p.y < 70) { el.classList.add("side"); el.style.left = (p.x + p.px / 2 + 8) + "px"; el.style.top = (p.y - 30 + 4) + "px"; }
+    else {
+      el.style.bottom = (H - (p.y - 30) + 8) + "px";
+      if (p.x < CX - 20) { el.classList.add("lean-l"); el.style.right = (W - p.x - 26) + "px"; }
+      else if (p.x > CX + 20) { el.classList.add("lean-r"); el.style.left = (p.x - 26) + "px"; }
+      else { el.classList.add("mid"); el.style.left = p.x + "px"; }
+    }
+    if (cls) el.classList.add(cls);
+    return el;
+  };
+  if (few) {
+    for (const x0 of game.says.slice(-2)) { const el = bubble(x0); if (el) box.append(el); }
+    return;
+  }
+  for (const x0 of game.says) {
+    const p = box._pos[x0.seat]; if (!p) continue;
+    const mark = h("button", { type: "button", class: "say mark", "aria-label": nameOf(x0.seat) + "：" + x0.text,
+      onclick: (ev) => { ev.stopPropagation(); game.sayTip = game.sayTip === x0.seat ? null : x0.seat; renderSays(); } },
+      h("i", {}), h("i", {}), h("i", {}));
+    mark.style.left = (p.x + p.px / 2 - 12) + "px"; mark.style.top = (p.y - 30 - 6) + "px";
+    mark.style.animationDelay = -(now - x0.at) + "ms";
+    box.append(mark);
+    if (game.sayTip === x0.seat) { const el = bubble(x0, "tip"); if (el) box.append(el); }
   }
 }
 // Thumbnails of what a passenger showed in the scuffle: red for an attack bonus,
@@ -1092,8 +1149,8 @@ const actorOf = (e) => e.first ?? e.seat ?? e.from ?? e.attacker ?? e.winner ?? 
 // it was handed, what was taken from it -- is slipped in under the turn it
 // happened on, so the record reads the way the player lived it. Nobody else's
 // log has those lines: they come from this seat's own knowledge list.
-const journey = { filter: "all", person: null, picking: false, open: {} };
-function resetJourney() { journey.filter = "all"; journey.person = null; journey.picking = false; journey.open = {}; }
+const journey = { tab: "log", seenDir: "of", filter: "all", person: null, picking: false, open: {} };
+function resetJourney() { journey.tab = "log"; journey.seenDir = "of"; journey.filter = "all"; journey.person = null; journey.picking = false; journey.open = {}; }
 const stopOf = (turn, n) => Math.max(1, Math.ceil(turn / n));
 const LOCK_SVG = '<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="7.5" width="9" height="6" rx="1"/><path d="M5.5 7.5V5.5a2.5 2.5 0 015 0v2"/></svg>';
 
@@ -1142,6 +1199,55 @@ function involves(e, s) {
   return !!(e.shown && e.shown[s]);
 }
 
+// ---------- who has seen whom ----------
+// Built only from what the whole carriage saw happen -- a scuffle's winner
+// choosing to look, a monocle handed over, two passengers trading trades with a
+// codebook, a trade shown in the open -- plus what this seat saw with its own
+// eyes. Of anyone else's look you learn that it happened, never what they saw.
+function seenLooks(v) {
+  const looks = looksFromLog(v.log);
+  // what this seat saw, word for word (and anything it learned that the log does not show)
+  if (game.me !== null) for (const k of v.knowledge) {
+    if (k.k !== "gang" && k.k !== "trade") continue;
+    const key = game.me + "|" + k.seat + "|" + k.k, old = looks.get(key);
+    if (!old || old.at <= k.at) looks.set(key, { by: game.me, of: k.seat, what: k.k, at: k.at, via: old && old.at === k.at ? old.via : "", value: k.k === "gang" ? gangName(k.gang) : tradeName(k.trade) });
+  }
+  for (const l of looks.values()) l.stale = isStale(l, v.log);
+  return [...looks.values()];
+}
+
+function renderSeen(v, body) {
+  const looks = seenLooks(v);
+  const dir = journey.seenDir; // "of": who has seen this one; "by": whom this one has seen
+  const seg = (key, label) => h("button", { type: "button", class: "jchip" + (dir === key ? " on" : ""), onclick: () => { journey.seenDir = key; renderJourney(); } }, label);
+  body.append(h("div", { class: "jchips" }, seg("of", t("journey.seenOf")), seg("by", t("journey.seenBy"))));
+  const me = game.me;
+  const order = Array.from({ length: v.n }, (_, i) => ((me ?? 0) + i) % v.n);
+  const nm = (s) => (s === me ? t("journey.you") : nameOf(s));
+  const pill = (l) => {
+    const other = dir === "of" ? l.by : l.of;
+    const bits = [t("table.stop", { n: num(stopOf(l.at, v.n)) })];
+    if (l.via === "monocle" || l.via === "codebook") bits.push(t("journey.via." + l.via));
+    if (l.stale) bits.push(t("journey.stale"));
+    return h("span", { class: "spill" + (l.by === me ? " you" : "") + (l.stale ? " old" : "") },
+      faceEl(other, "xs"), h("span", {}, nm(other) + (l.value ? (lang === "en" ? ": " : "：") + l.value : "")), h("span", { class: "st" }, bits.join(" · ")));
+  };
+  const line = (label, pills) => h("div", { class: "sline" }, h("span", { class: "k" }, label),
+    h("div", { class: "pills" }, ...(pills.length ? pills : [h("span", { class: "hint" }, t(dir === "of" ? "journey.nobody" : "journey.noOne"))])));
+  for (const s of order) {
+    const mine = looks.filter((l) => (dir === "of" ? l.of : l.by) === s).sort((a, b) => a.at - b.at);
+    const gang = mine.filter((l) => l.what === "gang").map(pill);
+    const trade = mine.filter((l) => l.what === "trade").map(pill);
+    // a trade shown in the open: everyone has seen it
+    const open = dir === "of" && (s === me ? v.me && v.me.tradeRevealed && v.me.trade : v.seats[s].trade);
+    if (open) trade.push(h("span", { class: "spill pub" }, t("journey.public", { trade: tradeName(open) })));
+    body.append(h("div", { class: "srow" + (mine.some((l) => l.by === me && me !== null && dir === "of") ? " mine" : "") },
+      faceEl(s, "sm"), h("div", { class: "sbody" }, h("span", { class: "who" }, s === me ? nameOf(s) + (lang === "en" ? ` (${t("table.you")})` : `（${t("table.you")}）`) : nameOf(s)),
+        line(t("journey.gangK"), gang), line(t("journey.tradeK"), trade))));
+  }
+  body.append(h("p", { class: "hint jempty" }, t("journey.seenHint")));
+}
+
 function renderJourney() {
   const v = curView(); if (!v) return;
   applyFolds();
@@ -1157,6 +1263,10 @@ function renderJourney() {
   const keepY = $("glogBody").scrollTop;
   const body = clear($("glogBody"));
   if (!folds.log) return;
+  const tab = (key, label) => h("button", { type: "button", role: "tab", "aria-selected": journey.tab === key ? "true" : "false", class: "jtab" + (journey.tab === key ? " on" : ""),
+    onclick: () => { journey.tab = key; renderJourney(); } }, label);
+  body.append(h("div", { class: "jtabs", role: "tablist" }, tab("log", t("journey.tabLog")), tab("seen", t("journey.tabSeen"))));
+  if (journey.tab === "seen") { renderSeen(v, body); body.scrollTop = keepY; return; }
   const F = journey.filter, who = journey.person;
 
   // the filters
@@ -1591,7 +1701,7 @@ function resultCard(v, e) {
   const count = e.stopped == null && e.doctored == null ? h("span", { class: "hint nowrap" }, t("log.count", { swords: e.swords, shields: e.shields }).replace(/[。.]$/, "")) : null;
   card.append(h("div", { class: "title disp" }, h("span", {}, title), count));
   for (const l of lines) card.append(h("p", { class: "small" }, l));
-  card.append(btn(t("table.gotIt"), "p", () => { game.result = null; if (game.mode === "solo") tick(); else { render(); netAuto(); } }));
+  card.append(btn(t("table.gotIt"), "p", () => { game.result = null; game.lastTier = "read"; if (game.mode === "solo") tick(); else { render(); netAuto(); } }));
   return card;
 }
 
@@ -1605,7 +1715,7 @@ function eventCard(e) {
     h("span", { class: "lab" }, t("table.stop", { n: num(e.stop) }) + " · " + t("events.head")),
     h("div", { class: "disp g2" }, t("events." + e.id)),
     h("p", { class: "small" }, line),
-    btn(t("table.gotIt"), "p", () => { game.evCard = null; if (game.mode === "solo") tick(); else { render(); netAuto(); } }));
+    btn(t("table.gotIt"), "p", () => { game.evCard = null; game.lastTier = "read"; if (game.mode === "solo") tick(); else { render(); netAuto(); } }));
 }
 
 // The player has read the result: now the film may start.
@@ -1696,7 +1806,7 @@ function route() {
   if (q.has("play")) {
     leaveRoom(true); game.mode = "solo";
     game.auto = q.get("auto") === "1";
-    if (game.auto && q.get("fast") === "1") for (const k of Object.keys(DELAY)) DELAY[k] = 40; // a self-playing game at speed, for checking screens
+    if (game.auto && q.get("fast") === "1") for (const k of Object.keys(WAIT)) WAIT[k] = 40; // a self-playing game at speed, for checking screens
     if (game.auto && !game.st) { show("setup"); startGame(); return; }
     if (!game.st) show("setup"); else show("table");
     return;

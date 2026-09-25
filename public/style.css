@@ -345,6 +345,24 @@ td .row { gap: 4px; flex-wrap: wrap; }
 .fd.open .caret { transform: rotate(180deg); }
 .fd .body { border-top: 1px solid var(--line); }
 .glog { display: flex; flex-direction: column; padding: 6px 12px 10px; font-size: 13px; max-height: 50vh; overflow-y: auto; }
+/* the journey log's two tabs: the log itself, and who has seen whom */
+.jtabs { display: flex; margin: -6px -12px 8px; border-bottom: 1px solid var(--line); }
+.jtab { flex: 1; min-height: 42px; background: none; border: 0; border-bottom: 2px solid transparent; color: var(--grey); font: inherit; font-size: 14px; cursor: pointer; }
+.jtab.on { color: var(--bone); border-bottom-color: var(--brass-hi); }
+.srow { display: flex; gap: 10px; padding: 10px 0; border-bottom: 1px dashed rgba(42, 50, 68, 0.9); }
+.srow:last-of-type { border-bottom: 0; }
+.srow.mine { background: rgba(201, 165, 79, 0.05); }
+.srow .sbody { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.srow .who { font-size: 14px; color: var(--bone); }
+.sline { display: flex; align-items: flex-start; gap: 6px; }
+.sline .k { flex-shrink: 0; width: 34px; font-size: 12px; letter-spacing: 0.1em; color: var(--grey); padding-top: 2px; }
+.sline .pills { display: flex; flex-wrap: wrap; gap: 5px; }
+.spill { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; line-height: 20px; padding: 1px 7px 1px 2px; border: 1px solid var(--line); border-radius: 12px; color: var(--bone); white-space: nowrap; }
+.spill .face { width: 18px; height: 18px; }
+.spill .st { color: var(--grey); font-size: 11px; }
+.spill.you { border-color: var(--brass); }
+.spill.pub { padding-left: 8px; border-style: dashed; border-color: var(--brass); color: var(--brass-hi); }
+.spill.old { opacity: 0.5; text-decoration: line-through; }
 /* the journey log: stops that fold, numbered turns, and this seat's own notes */
 .jchips { display: flex; gap: 6px; flex-wrap: wrap; padding: 4px 0 10px; border-bottom: 1px solid var(--line); }
 .jchip { font: inherit; font-size: 12px; min-height: 34px; padding: 0 11px; border: 1px solid var(--line); border-radius: 2px; background: transparent; color: var(--grey); cursor: pointer; }
@@ -390,3 +408,19 @@ td .row { gap: 4px; flex-wrap: wrap; }
 .talk .in input { min-height: 40px; }
 .talk .send { min-height: 40px; min-width: 44px; padding: 0 10px; }
 .over { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 18px 12px; text-align: center; }
+
+/* talk over the ring: the words in a bubble (up to six seats), or a mark to tap (seven and more) */
+.ring .say { position: absolute; z-index: 5; animation: say 4s linear forwards; }
+.ring .say.bub { max-width: 118px; padding: 5px 9px; background: var(--bone); color: var(--deep); font-size: 12px; line-height: 1.4; border-radius: 10px; box-shadow: 0 6px 16px -6px rgba(0, 0, 0, 0.8); pointer-events: none; }
+.ring .say.bub::after { content: ""; position: absolute; width: 10px; height: 10px; background: var(--bone); transform: rotate(45deg); }
+.ring .say.bub.mid { transform: translateX(-50%); }
+.ring .say.bub.mid::after { left: 50%; bottom: -4px; margin-left: -5px; }
+.ring .say.bub.lean-l::after { right: 21px; bottom: -4px; }
+.ring .say.bub.lean-r::after { left: 21px; bottom: -4px; }
+.ring .say.bub.side::after { left: -4px; top: 9px; }
+.ring .say.bub.tip { animation: none; }
+.ring .say.mark { width: 24px; height: 20px; padding: 0; border: 0; border-radius: 10px; background: var(--bone); display: flex; align-items: center; justify-content: center; gap: 2px; box-shadow: 0 0 0 2px var(--ground); cursor: pointer; }
+.ring .say.mark::before { content: ""; position: absolute; inset: -12px; }
+.ring .say.mark i { width: 3px; height: 3px; border-radius: 50%; background: var(--deep); }
+@keyframes say { 0% { opacity: 0; } 4% { opacity: 1; } 80% { opacity: 1; } 100% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .ring .say { animation: none; } }

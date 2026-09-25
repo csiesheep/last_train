@@ -13,6 +13,7 @@ import { sayAction, sayResult } from "../public/shared/talk.js";
 import en from "../public/i18n/en.js";
 import zh from "../public/i18n/zh-Hant.js";
 import { isFace, passengerName, freeFaces } from "../public/shared/passengers.js";
+import { DWELL, moveTier, louder } from "../public/shared/pace.js";
 
 const LANGS = { en, "zh-Hant": zh };
 // How long a step waits for a human before the table decides for them.
@@ -21,10 +22,6 @@ const STEP_MS = {
   answer: 30_000, return: 20_000, codebook: 20_000, coat: 20_000, direction: 20_000, passItems: 20_000,
   priest: 15_000, gunman: 15_000, doctor: 15_000, priestPay: 20_000, support: 15_000, hypnotist: 15_000, powers: 20_000, choice: 20_000, take: 20_000,
 };
-// Pause before a bot acts, by step, so people can follow.
-const BOT_MS = { reveal: 200, turn: 1_200, peek: 900, handLimit: 600, answer: 900, return: 700, codebook: 700, coat: 700, direction: 600, passItems: 400,
-  priest: 300, gunman: 300, doctor: 350, priestPay: 600, support: 550, hypnotist: 450, powers: 450, choice: 700, take: 600 };
-const PACE = 1.5; // every beat above takes half as long again, so a bot's turn can be followed
 // Steps everyone answers at once: bots answer together instead of one per beat.
 const SIMULTANEOUS = new Set(["reveal", "priest", "gunman", "doctor", "powers", "passItems"]);
 const GRACE_MS = 15_000;     // a disconnected human's decisions go to the bot after this
@@ -323,6 +320,8 @@ export class Room {
     const view = isBot ? E.view(before, action.seat) : null;
     const logBefore = before.log.length;
     room.state = E.apply(before, action);
+    // what this move showed sets how long the table holds before a bot moves again
+    this.tier = louder(this.tier || "silent", moveTier(before, room.state));
     if (isBot) {
       const line = this.withRng((rng) => sayAction(action, view, this.talkCtx(rng)));
       if (line) this.say(action.seat, line);
@@ -365,7 +364,9 @@ export class Room {
     this.pushViews();
     const need = E.mustAct(st);
     const bots = this.botSeats(need);
-    await this.scheduleAt(bots.length ? Math.min(now + Math.round((BOT_MS[step] ?? 600) * PACE), room.deadline) : room.deadline);
+    const wait = step === "reveal" ? 300 : DWELL[this.tier || "silent"];
+    this.tier = "silent";
+    await this.scheduleAt(bots.length ? Math.min(now + wait, room.deadline) : room.deadline);
   }
 
   // The alarm handler: let bots act, or enforce the clock.

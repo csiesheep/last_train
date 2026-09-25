@@ -101,6 +101,10 @@ export default {
     turn1: "{n} turn", turns: "{n} turns", note1: "{n} note", notes: "{n} notes", noNotes: "no notes", now: "now", none: "no event",
     all: "All", scuffle: "Scuffles", trade: "Trades", mine: "My notes", about: "About…", aboutName: "About {name}",
     onlyYou: "ONLY YOU KNOW", empty: "Nothing here matches.", nothing: "The train has not left yet.",
+    tabLog: "Log", tabSeen: "Who saw whom", seenOf: "Seen by", seenBy: "Has seen", you: "you", gangK: "Gang", tradeK: "Trade",
+    nobody: "nobody yet", noOne: "no one yet", public: "public: {trade}", stale: "changed since",
+    via: { monocle: "monocle", codebook: "codebook" },
+    seenHint: "Only what the whole carriage saw happen counts: a scuffle's winner choosing to look, a monocle handed over, a codebook swap, a trade shown in the open. Of anyone else's look you learn that it happened, not what they saw; what you saw yourself is written out.",
     note: {
       gang: "{name}'s gang card: {gang}.", trade: "{name}'s trade: {trade}.", hand: "{name}'s luggage: {items}.", handEmpty: "{name} holds nothing.",
       got: "{name} gave you: {item}.", gave: "You gave {name}: {item}.", lost: "{name} took from you: {item}.", offered: "{name} held out: {item}.",
