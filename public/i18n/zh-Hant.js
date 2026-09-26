@@ -97,6 +97,7 @@ export default {
     first_class_ticket: "手上有它加任意三件懷錶或玉印，可以獨自下車。",
     gold_bar: "你在衝突中輸了時，可以把金條交給贏家：他拿走金條，不能再看、也不能拿別的。",
   },
+  stale: { title: "車廂換新了", body: "你開著頁面的時候，遊戲剛更新過。重新整理後會回到你原本的座位，牌局照常進行。", reload: "重新整理" },
   journey: {
     turn1: "{n} 手", turns: "{n} 手", note1: "{n} 則筆記", notes: "{n} 則筆記", noNotes: "沒有筆記", now: "進行中", none: "無事",
     all: "全部", scuffle: "衝突", trade: "交換", mine: "我的筆記", about: "關於…", aboutName: "關於 {name}",

@@ -11,6 +11,7 @@ import zh from "./i18n/zh-Hant.js";
 import { PASSENGERS, FACE_IDS, isFace, passengerName, freeFaces } from "./shared/passengers.js";
 import { DWELL, moveTier } from "./shared/pace.js";
 import { looksFromLog, isStale } from "./shared/seen.js";
+import { VERSION } from "./shared/version.js";
 
 const LANGS = { en, "zh-Hant": zh };
 const $ = (id) => document.getElementById(id);
@@ -195,6 +196,7 @@ $("film").addEventListener("click", () => endFilm && endFilm());
 $("filmVid").addEventListener("ended", () => endFilm && endFilm());
 $("filmVid").addEventListener("error", () => endFilm && endFilm());
 $("btnStart").addEventListener("click", () => startGame());
+$("staleGo").addEventListener("click", () => location.reload());
 $("btnPlay").addEventListener("click", () => go("?play"));
 $("tutLink").addEventListener("click", () => go("?tutorial"));
 $("btnTutStart").addEventListener("click", () => go("?play=tutorial"));
@@ -550,6 +552,9 @@ const roomLine = (e) => ({ seat: e.sys ? null : e.seat, text: e.text, hot: e.hot
 function onMsg(m) {
   switch (m.type) {
     case "joined":
+      // A page left open across a deploy talks to a server running newer rules.
+      // Reloading keeps the seat (the token is in this tab's session), so ask for it.
+      if (m.version && m.version !== VERSION) $("stale").hidden = false;
       game.code = m.code; game.me = m.seat >= 0 ? m.seat : null;
       if (m.token) sess.set("lt.token." + m.code, m.token);
       if (!location.search.includes("room=" + m.code)) history.replaceState(null, "", location.pathname + "?room=" + m.code);

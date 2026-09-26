@@ -219,6 +219,11 @@
   <button type="button" class="btn sm ghost skip" id="filmSkip" data-t="film.skip"></button>
 </div>
 <div id="overlay" class="overlay" hidden></div>
+<!-- The game was updated while this page was open: reload, and come back to the same seat. -->
+<div id="stale" class="stale" hidden role="alertdialog" aria-labelledby="staleTitle">
+  <div class="card dark stack"><span class="disp h2" id="staleTitle" data-t="stale.title"></span><p class="small" data-t="stale.body"></p>
+    <button type="button" class="btn p" id="staleGo" data-t="stale.reload"></button></div>
+</div>
 <!-- ===== Card and trade texts, as a bottom sheet ===== -->
 <div id="scrim" class="scrim" hidden></div>
 <div id="sheet" class="sheet" hidden></div>

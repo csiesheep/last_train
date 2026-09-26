@@ -173,6 +173,9 @@ html[lang=en] .land .h1 { font-size: 42px; }
 
 /* reveal overlay */
 .overlay { position: fixed; inset: 0; background: var(--deep); overflow-y: auto; z-index: 10; }
+/* the game changed under an open page: nothing to do but reload, so it sits over everything */
+.stale { position: fixed; inset: 0; z-index: 90; background: rgba(5, 7, 12, 0.78); display: flex; align-items: center; justify-content: center; padding: 16px; }
+.stale .card { width: 100%; max-width: 360px; box-sizing: border-box; gap: 12px; }
 .overlay .scr { min-height: calc(100svh - 44px); gap: 10px; padding-top: 10px; }
 .overlay .card.row { padding: 10px 12px; }
 .reveal { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 22px 16px; text-align: center; }

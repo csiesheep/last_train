@@ -97,6 +97,7 @@ export default {
     first_class_ticket: "With this and any three watches or seals in your own bag, leave the train alone: a solo win.",
     gold_bar: "When you lose a scuffle, you may hand the gold bar to the winner instead: they take it and may neither look nor take anything else.",
   },
+  stale: { title: "The train has been refitted", body: "The game was updated while this page was open. Reload and you will be back in your seat; the game carries on.", reload: "Reload" },
   journey: {
     turn1: "{n} turn", turns: "{n} turns", note1: "{n} note", notes: "{n} notes", noNotes: "no notes", now: "now", none: "no event",
     all: "All", scuffle: "Scuffles", trade: "Trades", mine: "My notes", about: "About…", aboutName: "About {name}",

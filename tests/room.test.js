@@ -137,3 +137,10 @@ test("room: every seat gets a different face, a requested free face is honoured,
   const lobby = [...sockets[0].sent].reverse().find((m) => m.type === "lobby");
   assert.equal(lobby.seats[3].face, bots[0].face, "the lobby shows faces");
 });
+
+test("room: every socket is told the build the room runs, so an older page can ask to reload", async () => {
+  const { VERSION } = await import("../public/shared/version.js");
+  assert.match(VERSION, /^[0-9a-f]{10}$/);
+  const { ws } = await openRoom(2, 1);
+  for (const w of ws) assert.equal(last(w, "joined").version, VERSION);
+});

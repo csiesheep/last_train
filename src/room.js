@@ -14,6 +14,7 @@ import en from "../public/i18n/en.js";
 import zh from "../public/i18n/zh-Hant.js";
 import { isFace, passengerName, freeFaces } from "../public/shared/passengers.js";
 import { DWELL, moveTier, louder } from "../public/shared/pace.js";
+import { VERSION } from "../public/shared/version.js";
 
 const LANGS = { en, "zh-Hant": zh };
 // How long a step waits for a human before the table decides for them.
@@ -169,7 +170,8 @@ export class Room {
     server.serializeAttachment({ token: seat ? seat.token : null });
     if (this.room.idle) { this.room.idle = false; await this.clearAlarm(); }
 
-    this.send(server, { type: "joined", code: this.room.code, seat: seat ? seat.idx : -1, token: seat ? seat.token : null });
+    // the build this room runs: a page older than it asks its player to reload
+    this.send(server, { type: "joined", code: this.room.code, seat: seat ? seat.idx : -1, token: seat ? seat.token : null, version: VERSION });
     this.pushLobby();
     this.send(server, { type: "log", entries: this.room.log });
     if (this.room.state) this.send(server, this.viewMsg(seat));

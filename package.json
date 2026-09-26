@@ -7,6 +7,8 @@
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
+    "stamp": "node tools/stamp.mjs",
+    "pretest": "node tools/stamp.mjs",
     "test": "node --test",
     "sim": "node tests/sim.js"
   },

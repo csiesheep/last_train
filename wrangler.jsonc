@@ -3,6 +3,9 @@
   "name": "last_train",
   "compatibility_date": "2026-09-13",
   "main": "src/index.js",
+  // Stamps public/shared/version.js from the sources before every deploy and dev run,
+  // so a page left open across a deploy can tell the server moved on.
+  "build": { "command": "node tools/stamp.mjs" },
   "observability": {
     "enabled": true
   },
