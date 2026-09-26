@@ -566,6 +566,8 @@ export function decide(view, legal, level = "normal", rng = E.makeRng(E.randomSe
           return hurt && stake ? { ...use, why: "doctor" } : { ...skip, why: "skip" };
         }
         case "yield": return { ...legal.find((a) => a.item === cheapest(legal.map((a) => a.item))), why: "yield" };
+        // the loser's last bag was taken: hand back whatever is worth least to me
+        case "giveBack": return { ...legal.find((a) => a.item === cheapest(legal.map((a) => a.item))), why: "give_back" };
         case "bribe": {
           // Pay rather than let a likely enemy look or take.
           const pay = legal.find((a) => a.pay);

@@ -295,7 +295,7 @@ export function mustAct(st) {
         case "support": return [f.next];
         case "hypnotist": return [f.attacker];
         case "powers": return f.window.filter((s) => !f.answered.includes(s));
-        case "choice": case "take": return [f.winner];
+        case "choice": case "take": case "giveBack": return [f.winner];
         case "bribe": case "disguise": case "yield": return [loserOf(f)];
         default: return [];
       }
@@ -628,6 +628,7 @@ export function apply(prev, action) {
       moveItem(st, action.item, loser, seat);
       learn(st, loser, { k: "lost", to: seat, id: action.item, kind: st.items[action.item] });
       f.taken = action.item;
+      if (lastBagGone(st)) return st;
       finishScuffle(st);
       return st;
     }
@@ -662,6 +663,21 @@ export function apply(prev, action) {
     }
 
     // ---- expansion: the porter, the gold bar and the double agent ----
+    // The winner took the loser's last bag: one of the winner's own goes back,
+    // any one, even the bag just taken. Nobody leaves a scuffle empty-handed.
+    case "giveBack": {
+      needPhase("scuffle"); checkSeat();
+      const f = st.scuffle;
+      if (f.step !== "giveBack" || seat !== f.winner) throw new Error("not your bag to give back");
+      needMine(action.item);
+      const loser = loserOf(f);
+      moveItem(st, action.item, seat, loser);
+      learn(st, loser, { k: "got", from: seat, id: action.item, kind: st.items[action.item] });
+      learn(st, seat, { k: "gave", to: loser, id: action.item, kind: st.items[action.item] });
+      f.gaveBack = true;
+      finishScuffle(st);
+      return st;
+    }
     case "yieldItem": {
       needPhase("scuffle"); checkSeat();
       const f = st.scuffle;
@@ -672,6 +688,7 @@ export function apply(prev, action) {
       learn(st, f.winner, { k: "got", from: seat, id: action.item, kind: st.items[action.item] });
       f.taken = action.item;
       f.yielded = true;
+      if (lastBagGone(st)) return st;
       finishScuffle(st);
       return st;
     }
@@ -686,6 +703,7 @@ export function apply(prev, action) {
       learn(st, f.winner, { k: "got", from: seat, id, kind: "gold_bar" });
       learn(st, seat, { k: "gave", to: f.winner, id, kind: "gold_bar" });
       f.choice = "bribe";
+      if (lastBagGone(st)) return st;
       finishScuffle(st);
       return st;
     }
@@ -1012,9 +1030,18 @@ function scuffleEntry(st, extra = {}) {
     support: { ...f.support },
     shown: Object.fromEntries(Object.entries(f.shown).map(([s, x]) => [s, { items: kinds(st, x.items), trade: x.trade }])),
     pharmacist: f.pharmacist ? f.pharmacist.seat : null,
-    swords: f.swords, shields: f.shields, winner: f.winner, tie: f.tie, drew: f.drew, choice: f.choice, dice: f.dice || null, yielded: !!f.yielded,
+    swords: f.swords, shields: f.shields, winner: f.winner, tie: f.tie, drew: f.drew, choice: f.choice, dice: f.dice || null, yielded: !!f.yielded, gaveBack: !!f.gaveBack,
     ...extra,
   };
+}
+
+// The original's rule: if the winner has just taken the loser's last bag, the
+// winner owes one back. Returns true when the scuffle now waits for it.
+function lastBagGone(st) {
+  const f = st.scuffle;
+  if (hand(st, loserOf(f)).length) return false;
+  f.step = "giveBack";
+  return true;
 }
 
 function finishScuffle(st) {
@@ -1250,6 +1277,7 @@ export function legalActions(st, seat) {
           break;
         }
         case "yield": for (const item of hand(st, seat)) push({ type: "yieldItem", item }); break;
+        case "giveBack": for (const item of hand(st, seat)) push({ type: "giveBack", item }); break;
         case "bribe":
           push({ type: "bribe", pay: false });
           if (holdsKind(st, seat, "gold_bar")) push({ type: "bribe", pay: true });

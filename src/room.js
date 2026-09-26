@@ -20,7 +20,7 @@ const LANGS = { en, "zh-Hant": zh };
 const STEP_MS = {
   reveal: 45_000, turn: 60_000, peek: 30_000, handLimit: 30_000,
   answer: 30_000, return: 20_000, codebook: 20_000, coat: 20_000, direction: 20_000, passItems: 20_000,
-  priest: 15_000, gunman: 15_000, doctor: 15_000, priestPay: 20_000, support: 15_000, hypnotist: 15_000, powers: 20_000, choice: 20_000, take: 20_000,
+  priest: 15_000, gunman: 15_000, doctor: 15_000, priestPay: 20_000, support: 15_000, hypnotist: 15_000, powers: 20_000, choice: 20_000, take: 20_000, giveBack: 20_000,
 };
 // Steps everyone answers at once: bots answer together instead of one per beat.
 const SIMULTANEOUS = new Set(["reveal", "priest", "gunman", "doctor", "powers", "passItems"]);

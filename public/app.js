@@ -415,7 +415,7 @@ function autoAnswer(st, legal) {
     if (f.step === "powers") return legal.length === 1 ? legal[0] : null;
     // everyone who loses is asked about the gold bar, everyone looked at about lying;
     // without the card there is only one answer
-    if (f.step === "bribe" || f.step === "disguise") return legal.length === 1 ? legal[0] : null;
+    if (f.step === "bribe" || f.step === "disguise" || f.step === "giveBack") return legal.length === 1 ? legal[0] : null;
   }
   if (st.phase === "trade" && st.trade && st.trade.step === "disguise") return legal.length === 1 ? legal[0] : null;
   return null;
@@ -728,6 +728,7 @@ function describeParts(e, L, parts) {
       else {
         const loser = e.winner === e.attacker ? e.defender : e.attacker;
         parts.push(L(e.choice === "bribe" ? "bribe" : e.yielded ? "yield" : e.choice === "take" ? "take" : "peek", { w: nameOf(e.winner), l: nameOf(loser) }));
+        if (e.gaveBack) parts.push(L("gaveBack", { w: nameOf(e.winner), l: nameOf(loser) }));
       }
       return undefined;
     }
@@ -1360,7 +1361,7 @@ function waiting(v) {
 }
 const itemCard = (it, big = false) => pic(it.kind, { cls: big ? " big" : "", onclick: () => openItemSheet(it.kind) });
 // Scuffle steps whose count is settled, so the table shows it.
-const COUNTED = ["doctor", "bribe", "choice", "disguise", "take", "yield"];
+const COUNTED = ["doctor", "bribe", "choice", "disguise", "take", "yield", "giveBack"];
 
 // The expansion's four cards, under its switch while it is on.
 const DLC_CARDS = [["item", "gold_bar"], ["trade", "double"], ["trade", "porter"], ["trade", "gambler"]];
@@ -1594,6 +1595,7 @@ function scuffleCard(v, legal) {
   const iAct = v.waitingOn.includes(me);
   if (!iAct) {
     if (f.step === "yield" && f.winner === me) card.append(h("p", { class: "small" }, t("table.yieldWait", { name: nameOf(f.winner === f.attacker ? f.defender : f.attacker) })));
+    if (f.step === "giveBack" && f.winner !== me && (f.winner === f.attacker ? f.defender : f.attacker) === me) card.append(h("p", { class: "small" }, t("table.giveBackWait", { name: nameOf(f.winner) })));
     card.append(waiting(v));
     return card;
   }
@@ -1654,6 +1656,13 @@ function scuffleCard(v, legal) {
       card.append(h("p", {}, t("table.yieldQ", { name: nameOf(f.winner) })), h("p", { class: "hint" }, t("table.yieldHint")));
       card.append(btn(ui.item ? t("table.yieldGo", { item: itemName(kindOf(v, ui.item)) }) : t("table.yieldPick"), "p", () => humanAct({ type: "yieldItem", seat: me, item: ui.item }), !ui.item));
       break;
+    case "giveBack": {
+      const loser = f.winner === f.attacker ? f.defender : f.attacker;
+      handPick = { ids: new Set(legal.map((a) => a.item)), on: (id) => { ui.item = id; render(); } };
+      card.append(h("p", {}, t("table.giveBackQ", { name: nameOf(loser) })), h("p", { class: "hint" }, t("table.giveBackHint")));
+      card.append(btn(ui.item ? t("table.giveBackGo", { item: itemName(kindOf(v, ui.item)) }) : t("table.yieldPick"), "p", () => humanAct({ type: "giveBack", seat: me, item: ui.item }), !ui.item));
+      break;
+    }
     case "choice": {
       const loser = f.winner === f.attacker ? f.defender : f.attacker;
       const take = legal.find((a) => a.take);
@@ -1687,7 +1696,7 @@ function resultCard(v, e) {
   else {
     title = t(e.winner === a ? "table.res.won" : "table.res.lost", { a: nameOf(a) });
     lines.push(t(e.choice === "bribe" ? "table.res.bribe" : e.yielded ? "table.res.yield" : e.choice === "take" ? "table.res.take" : "table.res.peek", { w: nameOf(e.winner), l: nameOf(loser) }));
-    if (e.winner === game.me && e.choice !== "take") {
+    if (e.winner === game.me && e.choice === "peek") {
       const gang = (v.knowledge.filter((k) => k.k === "gang" && k.seat === loser).pop() || {}).gang;
       const trade = (v.knowledge.filter((k) => k.k === "trade" && k.seat === loser).pop() || {}).trade;
       if (gang) lines.push(t("table.res.seen", { gang: gangName(gang), trade: trade ? tradeName(trade) : "?" }));
@@ -1695,6 +1704,11 @@ function resultCard(v, e) {
     if (loser === game.me && e.choice === "take") {
       const lost = v.knowledge.filter((k) => k.k === "lost" && k.at === e.t).pop();
       if (lost) lines.push(t("table.res.taken", { item: itemName(lost.kind) }));
+    }
+    if (e.gaveBack) {
+      lines.push(t("table.res.gaveBack", { w: nameOf(e.winner), l: nameOf(loser) }));
+      const back = loser === game.me ? v.knowledge.filter((k) => k.k === "got" && k.at === e.t && k.from === e.winner).pop() : null;
+      if (back) lines.push(t("table.res.gotBack", { item: itemName(back.kind) }));
     }
   }
   if (e.dice && e.stopped == null) lines.unshift(t("table.res.dice", { name: nameOf(e.dice.seat), n: e.dice.roll }));
