@@ -12,6 +12,7 @@ import { PASSENGERS, FACE_IDS, isFace, passengerName, freeFaces } from "./shared
 import { DWELL, moveTier } from "./shared/pace.js";
 import { looksFromLog, isStale } from "./shared/seen.js";
 import { VERSION } from "./shared/version.js";
+import { buildRecord, cleanAction, finalTable, resultOf } from "./shared/record.js";
 
 const LANGS = { en, "zh-Hant": zh };
 const $ = (id) => document.getElementById(id);
@@ -40,6 +41,9 @@ const clear = (el) => { while (el.firstChild) el.removeChild(el.firstChild); ret
 // ---------- icons (stroke-based, 24 grid) ----------
 const svg = (body, size = 18) => { const s = document.createElementNS("http://www.w3.org/2000/svg", "svg"); s.setAttribute("width", size); s.setAttribute("height", size); s.setAttribute("viewBox", "0 0 24 24"); s.setAttribute("fill", "none"); s.setAttribute("stroke", "currentColor"); s.setAttribute("stroke-width", "1.6"); s.setAttribute("stroke-linecap", "round"); s.setAttribute("stroke-linejoin", "round"); s.setAttribute("aria-hidden", "true"); s.innerHTML = body; return s; };
 const PATHS = {
+  download: '<path d="M12 4v11"/><path d="M7 10.5L12 15.5l5-5"/><path d="M5 19.5h14"/>',
+  copy: '<rect x="8" y="8" width="12" height="12" rx="1.5"/><path d="M16 8V5.5A1.5 1.5 0 0 0 14.5 4h-9A1.5 1.5 0 0 0 4 5.5v9A1.5 1.5 0 0 0 5.5 16H8"/>',
+  share: '<path d="M12 15V4"/><path d="M8 8l4-4 4 4"/><path d="M6 12v6.5A1.5 1.5 0 0 0 7.5 20h9a1.5 1.5 0 0 0 1.5-1.5V12"/>',
   watch: '<circle cx="12" cy="13" r="7"/><path d="M12 9v4l2.5 1.5"/><path d="M10 3h4"/><path d="M12 3v3"/>',
   seal: '<rect x="6" y="12" width="12" height="9" rx="1"/><path d="M9 12V8a3 3 0 0 1 6 0v4"/><path d="M9 17h6"/>',
   case_watch: '<rect x="3" y="8" width="18" height="12" rx="2"/><path d="M8 8V6a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M3 13h18"/><circle cx="12" cy="16" r="2"/>',
@@ -232,12 +236,15 @@ function startGame() {
   game.mode = "solo"; game.view = null; game.legal = [];
   const n = setup.n;
   game.rng = E.makeRng(E.randomSeed());
-  game.st = E.createGame(E.randomSeed(), n, { smuggling: setup.smuggling, events: setup.events, dlc: setup.dlc ? ALL_DLC : undefined });
+  game.seed = E.randomSeed();
+  game.options = { smuggling: !!setup.smuggling, events: !!setup.events, dlc: setup.dlc ? ALL_DLC : null };
+  game.actions = [];
+  game.st = E.createGame(game.seed, n, game.options);
   game.me = 0; game.level = setup.level;
   game.faces = [setup.face, ...freeFaces(game.rng, [setup.face], E.shuffle).slice(0, n - 1)];
   game.names = soloNames();
   game.log = []; game.logSeen = 0; game.lastTier = "silent"; game.says = []; game.sayTip = null; game.ui = freshUi(); game.result = null; game.evCard = null; game.seenCount = null;
-  game.tut = null; game.filmOver = false; game.filmWait = null; game.hold = false; resetJourney();
+  game.tut = null; game.filmOver = false; game.filmWait = null; game.hold = false; resetJourney(); exp.net = null;
   clearTimeout(game.botTimer);
   show("table");
   tick();
@@ -286,6 +293,7 @@ function startTutorial() {
   game.names = soloNames();
   game.log = []; game.logSeen = 0; game.lastTier = "silent"; game.says = []; game.sayTip = null; game.ui = freshUi(); game.result = null; game.evCard = null; game.seenCount = null;
   game.tut = { seen: {}, pending: null }; game.filmOver = false; game.filmWait = null; game.hold = false; resetJourney();
+  game.seed = null; game.actions = null; exp.net = null;
   show("table");
   tick();
 }
@@ -477,6 +485,7 @@ function step(a) {
   try { game.st = E.apply(game.st, a); }
   catch (err) { console.error(err, a); tick(); return; }
   game.lastTier = moveTier(before, game.st);
+  if (game.actions) game.actions.push(cleanAction(before.turnNo, a));
   game.ui = freshUi();
   afterStep();
   tick();
@@ -573,7 +582,7 @@ function onMsg(m) {
       renderLog(); renderLobbyLog(); break;
     case "view": {
       if (!m.view) { game.view = null; game.legal = []; if (game.lobby) { show("lobby"); renderLobby(); } break; }
-      if (m.gen !== game.gen) { game.gen = m.gen; game.log = game.log.filter((l) => l.room); game.logSeen = 0; game.ui = freshUi(); game.evCard = null; game.seenCount = null; game.filmOver = false; game.filmWait = null; resetJourney(); }
+      if (m.gen !== game.gen) { game.gen = m.gen; game.log = game.log.filter((l) => l.room); game.logSeen = 0; game.ui = freshUi(); game.evCard = null; game.seenCount = null; game.filmOver = false; game.filmWait = null; resetJourney(); exp.net = null; }
       const key = `${m.view.phase}/${m.view.scuffle?.step || m.view.trade?.step || ""}/${m.view.turnNo}/${(m.view.waitingOn || []).join(",")}/${m.view.log.length}`;
       if (key !== game.viewKey) { game.viewKey = key; game.ui = freshUi(); }
       game.view = m.view; game.legal = m.legal || []; game.names = m.names; game.faces = m.faces || []; game.me = m.me; game.deadline = m.deadline || 0;
@@ -587,6 +596,13 @@ function onMsg(m) {
       show("table"); render(); startClock(); netAuto();
       break;
     }
+    case "export":
+      exp.pending = false;
+      exp.net = m.ok ? m : null;
+      exp.locked = !m.ok;
+      if (!m.ok && exp.scope === "full") exp.scope = "mine";
+      if (exp.open) renderExport();
+      break;
     case "error":
       if (m.fatal) { leaveRoom(true); game.mode = "solo"; show("landing"); setStatus(m.key ? t("lobby.err." + m.key) : m.message, true); }
       else if (game.view && !$("view-table").hidden) { addSys(m.key ? t("lobby.err." + m.key) : m.message, true); render(); }
@@ -648,6 +664,7 @@ function renderLobby() {
   $("lbDlc").checked = !!L.settings.dlc;
   dlcCards($("lbDlcCards"), !!L.settings.dlc);
   $("lbEv").checked = !!L.settings.events;
+  $("lbFull").checked = !!L.settings.fullExport;
   eventCards($("lbEvCards"), !!L.settings.events);
   const me = L.seats.find((s) => s.idx === game.me);
   $("lbReady").hidden = host || !me || L.phase !== "lobby";
@@ -679,6 +696,7 @@ document.querySelectorAll("#lbLevel button").forEach((b) => b.addEventListener("
 $("lbSmug").addEventListener("change", (e) => send({ type: "settings", smuggling: e.target.checked }));
 $("lbDlc").addEventListener("change", (e) => send({ type: "settings", dlc: e.target.checked }));
 $("lbEv").addEventListener("change", (e) => send({ type: "settings", events: e.target.checked }));
+$("lbFull").addEventListener("change", (e) => send({ type: "settings", fullExport: e.target.checked }));
 const chatSend = (inp) => { const text = inp.value.trim(); if (!text) return; send({ type: "chat", text }); inp.value = ""; };
 $("lbSend").addEventListener("click", () => chatSend($("lbChat")));
 $("lbChat").addEventListener("keydown", (e) => { if (e.key === "Enter") chatSend($("lbChat")); });
@@ -1068,8 +1086,8 @@ const pic = (kind, o = {}) => h("button", { type: "button", class: "pic" + (o.cl
 const thumb = (kind, onclick) => h("button", { type: "button", class: "thumbbtn", title: itemName(kind), onclick }, itemImg(kind, "thumb"));
 
 // ---------- the bottom sheet: what a card or a trade does ----------
-function openSheet(...children) { const sh = clear($("sheet")); sh.append(h("div", { class: "grip" }), ...children); sh.hidden = false; $("scrim").hidden = false; }
-function closeSheet() { $("sheet").hidden = true; $("scrim").hidden = true; }
+function openSheet(...children) { const sh = clear($("sheet")); sh.classList.remove("xsheet"); sh.append(h("div", { class: "grip" }), ...children.filter((c) => c != null && c !== false)); sh.hidden = false; $("scrim").hidden = false; }
+function closeSheet() { $("sheet").hidden = true; $("scrim").hidden = true; $("sheet").classList.remove("xsheet"); exp.open = false; }
 $("scrim").addEventListener("click", closeSheet);
 function openItemSheet(kind, where = "") {
   const def = E.ITEM_BY_KIND[kind] || {};
@@ -1744,6 +1762,181 @@ function seenResult() {
   game.filmWait = null; // the card stays as it is behind the closing black
   playFilmFromBlack(w.kind, w.then);
 }
+// ---------- export a finished game ----------
+// Two formats: a Markdown journey log to read, and a JSON record to replay.
+// Two scopes: everything laid open, or only what this seat saw. Solo games keep
+// their seed and every move, so the full record is always there; a compartment
+// hands it over only if the host chose to share it (and the seat's own view
+// is always there).
+const exp = { open: false, format: "md", scope: "full", net: null, pending: false, locked: false, note: "" };
+const fullAllowed = () => (game.mode === "solo" ? !!(game.actions && game.seed != null) : !!(game.lobby && game.lobby.settings && game.lobby.settings.fullExport) && !exp.locked);
+function openExport() {
+  exp.open = true; exp.format = "md"; exp.note = "";
+  exp.scope = fullAllowed() ? "full" : "mine";
+  if (game.mode === "net" && exp.scope === "full" && !exp.net) { exp.pending = true; send({ type: "export" }); }
+  renderExport();
+}
+const isBot = (s) => (game.mode === "solo" ? s !== game.me : !!(game.lobby && game.lobby.seats.find((x) => x.idx === s && x.ai)));
+const pad2 = (x) => String(x).padStart(2, "0");
+function exportStamp(d) { return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`; }
+
+// The record both formats are written from.
+function exportRecord(scope) {
+  const v = curView();
+  const now = new Date();
+  const full = scope === "full";
+  const src = game.mode === "solo" ? { seed: game.seed, options: game.options, actions: game.actions, items: game.st && game.st.items } : exp.net;
+  const final = game.mode === "solo" ? finalTable(game.st) : v.seats.map((sd, seat) => ({ seat, gang: sd.gang, trade: sd.trade, bags: (sd.hand || []).map((x) => x.kind) }));
+  const last = [...v.log].reverse().find((e) => e.type === "declare" || e.type === "solo");
+  const result = game.mode === "solo" ? resultOf(game.st) : { winner: v.winner, reason: v.reason, by: last ? last.seat : null, stop: Math.max(1, Math.ceil(v.turnNo / v.n)), turn: v.turnNo };
+  const passengers = Array.from({ length: v.n }, (_, seat) => {
+    const p = { seat, name: game.names[seat] || nameOf(seat), face: game.faces[seat] || null, who: seat === game.me ? "you" : isBot(seat) ? "bot" : "human" };
+    if (p.who === "bot") p.level = game.mode === "solo" ? game.level : game.lobby && game.lobby.settings.level;
+    return p;
+  });
+  const rec = buildRecord({
+    exportedAt: now.toISOString(), build: VERSION, mode: game.mode === "solo" ? "solo" : "compartment", scope: full ? "full" : "seat", lang,
+    room: game.mode === "net" ? game.code : undefined, seed: full ? src.seed : undefined, n: v.n,
+    options: full ? src.options : (game.mode === "solo" ? game.options : game.lobby && { smuggling: game.lobby.settings.smuggling, events: game.lobby.settings.events, dlc: game.lobby.settings.dlc ? ALL_DLC : null }),
+    passengers, result, final, actions: full ? src.actions : undefined, me: game.me, notes: full ? undefined : v.knowledge, log: v.log,
+  });
+  return { rec, items: full ? src.items : null, when: now };
+}
+
+// What the full record adds to a turn: what went hand to hand face down, and who lied.
+function fullLines(actions, T, items) {
+  const out = [];
+  const K = (id) => itemName(items && items[id] ? items[id] : id);
+  for (const a of actions.filter((x) => x.t === T)) {
+    const L = (k, p) => out.push(t("export.fullLine." + k, p));
+    if (a.type === "offer") L("offer", { name: nameOf(a.seat), to: nameOf(a.to), item: K(a.item) });
+    else if (a.type === "answer" && a.accept && a.item) L("answer", { name: nameOf(a.seat), item: K(a.item) });
+    else if (a.type === "gift") L("gift", { from: nameOf(a.seat), to: nameOf(a.to), item: K(a.item) });
+    else if (a.type === "give") L("give", { name: nameOf(a.seat), item: K(a.item) });
+    else if (a.type === "takeItem") L("take", { name: nameOf(a.seat), item: K(a.item) });
+    else if (a.type === "yieldItem") L("yield", { name: nameOf(a.seat), item: K(a.item) });
+    else if (a.type === "giveBack") L("giveBack", { name: nameOf(a.seat), item: K(a.item) });
+    else if (a.type === "passItem") L("pass", { name: nameOf(a.seat), item: K(a.item) });
+    else if (a.type === "disguise" && a.lie) L("lie", { name: nameOf(a.seat) });
+  }
+  return out;
+}
+
+function exportMarkdown({ rec, items, when }) {
+  const D = (k, p) => t("export.doc." + k, p);
+  const colon = lang === "en" ? ": " : "：";
+  const v = curView();
+  const lines = ["# " + D("title"), ""];
+  lines.push("- " + D("date") + colon + `${exportStamp(when)} ${pad2(when.getHours())}:${pad2(when.getMinutes())}`);
+  const bits = [rec.mode === "solo" ? D("solo") : D("room", { code: rec.room }), D("seats", { n: rec.seats })];
+  const lvl = game.mode === "solo" ? game.level : game.lobby && game.lobby.settings.level;
+  if (lvl) bits.push(t("setup." + lvl));
+  if (rec.options.events) bits.push(t("setup.events"));
+  if (rec.options.dlc) bits.push(t("setup.dlc"));
+  if (rec.options.smuggling) bits.push(t("lobby.smuggling"));
+  lines.push("- " + bits.join(" · "));
+  lines.push("- " + D("content") + colon + (rec.scope === "full" ? t("export.full") : t("export.mine")));
+  const r = rec.result;
+  const who = typeof r.winner === "number" ? t("over.soloWins", { name: nameOf(r.winner) }) : t("over.gangWins", { gang: gangName(r.winner) });
+  const how = r.reason === "solo" ? t("over.solo") : t(r.reason === "declared" ? "over.declared" : "over.wrong", { name: r.by != null ? nameOf(r.by) : "" });
+  lines.push("- " + D("result") + colon + `**${who}** — ${how}（${D("at", { stop: t("table.stop", { n: num(r.stop) }), turn: r.turn })}）`.replace("（", lang === "en" ? " (" : "（").replace(/）$/, lang === "en" ? ")" : "）"));
+  lines.push("", "## " + D("passengers"), "");
+  lines.push(`| # | ${D("colName")} | ${D("colGang")} | ${D("colTrade")} | ${D("colBags")} |`, "|---|---|---|---|---|");
+  for (const p of rec.passengers) {
+    const f = rec.final[p.seat];
+    const tag = p.who === "you" ? (lang === "en" ? " (you)" : "（你）") : p.who === "bot" ? " · AI" : "";
+    lines.push(`| ${p.seat + 1} | ${nameOf(p.seat)}${tag} | ${f.gang ? gangName(f.gang) : "?"} | ${f.trade ? tradeName(f.trade) : "?"} | ${f.bags.map(itemName).join(lang === "en" ? ", " : "、")} |`);
+  }
+  // turn by turn, stop by stop, as the journey log reads
+  const notes = game.me === null ? {} : notesByTurn(v);
+  const turns = [...new Set([...rec.log.map((e) => e.t), ...Object.keys(notes).map(Number)])].sort((x, y) => x - y);
+  let stop = 0;
+  for (const T of turns) {
+    const st = stopOf(T, rec.seats);
+    const entries = rec.log.filter((e) => e.t === T);
+    if (st !== stop) {
+      stop = st;
+      const ev = rec.log.find((e) => e.type === "event" && !e.done && e.id && stopOf(e.t, rec.seats) === st);
+      lines.push("", "## " + t("table.stop", { n: num(st) }) + (ev ? " · " + t("events." + ev.id) : ""), "");
+    }
+    let numbered = false;
+    for (const e of entries) {
+      const plain = e.type === "event" || e.type === "start";
+      lines.push("- " + (plain || numbered ? "" : `**${T}** `) + describe(e));
+      if (!plain) numbered = true;
+    }
+    for (const n of notes[T] || []) lines.push("  - " + t("journey.onlyYou") + colon + n.text);
+    if (rec.scope === "full") for (const f of fullLines(rec.actions, T, items)) lines.push("  - " + D("full") + colon + f);
+  }
+  return lines.join("\n") + "\n";
+}
+
+// JSON with one move, one log line, one passenger per line: readable, and diffs well.
+function exportJSON({ rec }) {
+  const rows = new Set(["passengers", "final", "actions", "log", "notes"]);
+  const parts = Object.entries(rec).map(([k, val]) => rows.has(k) && Array.isArray(val)
+    ? `  ${JSON.stringify(k)}: [\n${val.map((x) => "    " + JSON.stringify(x)).join(",\n")}\n  ]`
+    : `  ${JSON.stringify(k)}: ${JSON.stringify(val)}`);
+  return "{\n" + parts.join(",\n") + "\n}\n";
+}
+
+function exportFile() {
+  const data = exportRecord(exp.scope);
+  const md = exp.format === "md";
+  const text = md ? exportMarkdown(data) : exportJSON(data);
+  const d = data.when;
+  const base = (md && lang !== "en" ? "末班夜車" : "last-train") + `-${exportStamp(d)}-${pad2(d.getHours())}${pad2(d.getMinutes())}`;
+  return { text, name: base + (md ? ".md" : ".json"), type: md ? "text/markdown" : "application/json" };
+}
+
+function renderExport() {
+  if (!exp.open) return;
+  const v = curView(); if (!v) return;
+  const full = fullAllowed();
+  if (!full) exp.scope = "mine";
+  if (exp.scope === "mine") exp.format = exp.format === "json" ? "md" : exp.format;
+  const waiting = game.mode === "net" && exp.scope === "full" && exp.pending;
+  const opt = (key, title, ext, hint, off) => h("button", { type: "button", class: "xopt" + (exp.format === key ? " on" : ""), disabled: off,
+    onclick: () => { exp.format = key; renderExport(); } }, h("span", { class: "dot" }), h("span", { class: "stack", style: "gap:3px;flex:1;min-width:0;text-align:left" },
+    h("span", { class: "row", style: "gap:8px" }, h("b", {}, title), h("span", { class: "ext" }, ext)), h("span", { class: "hint" }, hint)));
+  const seg = (key, label, off) => h("button", { type: "button", class: exp.scope === key ? "on" : "", disabled: off,
+    onclick: () => { exp.scope = key; if (key === "full" && game.mode === "net" && !exp.net) { exp.pending = true; send({ type: "export" }); } renderExport(); } }, label);
+  let preview = "";
+  if (!waiting) { try { preview = exportFile().text.split("\n").slice(0, 12).join("\n"); } catch (err) { console.error(err); preview = ""; } }
+  const act = async (kind) => {
+    const f = exportFile();
+    try {
+      if (kind === "copy") { await navigator.clipboard.writeText(f.text); exp.note = t("export.copied"); }
+      else if (kind === "share") {
+        const file = new File([f.text], f.name, { type: f.type });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) await navigator.share({ files: [file], title: f.name });
+        else await navigator.share({ title: f.name, text: f.text });
+      } else {
+        const url = URL.createObjectURL(new Blob([f.text], { type: f.type + ";charset=utf-8" }));
+        const link = h("a", { href: url, download: f.name }); document.body.append(link); link.click(); link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 2000);
+        exp.note = t("export.saved", { name: f.name });
+      }
+    } catch (err) { if (err && err.name !== "AbortError") exp.note = t("export.failed"); }
+    renderExport();
+  };
+  openSheet(
+    h("div", { class: "row between" }, h("span", { class: "disp ttl" }, t("export.title")), h("span", { class: "hint" }, t("export.meta", { n: v.n, turn: v.turnNo }))),
+    h("span", { class: "lab" }, t("export.format")),
+    opt("md", t("export.md"), ".md", t("export.mdHint"), false),
+    opt("json", t("export.json"), ".json", exp.scope === "full" ? t("export.jsonHint") : t("export.jsonNeedsFull"), exp.scope !== "full"),
+    h("span", { class: "lab" }, t("export.scope")),
+    h("div", { class: "seg" }, seg("full", t("export.full"), !full), seg("mine", t("export.mine"), false)),
+    h("span", { class: "hint" }, t(exp.scope === "full" ? "export.fullHint" : "export.mineHint")),
+    game.mode === "net" && !full ? h("span", { class: "hint warn" }, t(exp.locked && game.lobby && game.lobby.settings.fullExport ? "export.missing" : "export.roomLocked")) : null,
+    waiting ? h("span", { class: "hint" }, t("export.loading")) : h("pre", { class: "xprev" }, preview),
+    h("div", { class: "xbtns" }, btn([icon("copy", 16), t("export.copy")], "", () => act("copy"), waiting),
+      navigator.share ? btn([icon("share", 16), t("export.share")], "", () => act("share"), waiting) : null,
+      btn([icon("download", 16), t("export.download")], "p", () => act("download"), waiting)),
+    exp.note ? h("p", { class: "hint center" }, exp.note) : null);
+  $("sheet").classList.add("xsheet");
+}
+
 function overCard(v) {
   if (game.tut) return tutorialOverCard(v);
   const wrap = h("div", { class: "stack" });
@@ -1769,6 +1962,8 @@ function overCard(v) {
   else if (game.mode === "solo") wrap.append(btn(t("table.again"), "p", () => startGame()));
   else if (game.me === 0) wrap.append(btn(t("table.again"), "p", () => send({ type: "rematch" })));
   else wrap.append(h("p", { class: "hint center" }, t("lobby.rematchWait")));
+  // before the result is dismissed: in solo, "got it" goes on to the platform and the game is gone
+  wrap.append(btn([icon("download", 16), t("export.button")], "ghost", openExport), h("p", { class: "hint center" }, t("export.sub")));
   return wrap;
 }
 

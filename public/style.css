@@ -427,3 +427,16 @@ td .row { gap: 4px; flex-wrap: wrap; }
 .ring .say.mark i { width: 3px; height: 3px; border-radius: 50%; background: var(--deep); }
 @keyframes say { 0% { opacity: 0; } 4% { opacity: 1; } 80% { opacity: 1; } 100% { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .ring .say { animation: none; } }
+
+/* the export sheet: a format to pick, a scope, a look at the first lines, and three ways out */
+.sheet.xsheet { gap: 10px; }
+.xopt { display: flex; gap: 10px; align-items: flex-start; width: 100%; padding: 11px 12px; border: 1px solid var(--line); border-radius: 2px; background: var(--card); color: var(--bone); font: inherit; cursor: pointer; }
+.xopt.on { border-color: var(--brass-hi); background: rgba(201, 165, 79, 0.07); }
+.xopt:disabled { opacity: 0.45; cursor: default; }
+.xopt .dot { width: 18px; height: 18px; border-radius: 50%; border: 1.5px solid var(--grey); flex-shrink: 0; margin-top: 2px; position: relative; }
+.xopt.on .dot { border-color: var(--brass-hi); }
+.xopt.on .dot::after { content: ""; position: absolute; inset: 3px; border-radius: 50%; background: var(--brass-hi); }
+.xopt .ext { font-family: Consolas, "SFMono-Regular", Menlo, monospace; font-size: 11px; color: var(--brass-hi); border: 1px solid var(--brass); border-radius: 2px; padding: 0 5px; }
+.xprev { margin: 0; max-height: 132px; overflow: hidden; padding: 10px 12px; background: var(--deep); border: 1px solid var(--line); border-radius: 2px; color: #b7bccb; font: 11.5px/1.6 Consolas, "SFMono-Regular", Menlo, "Noto Sans TC", monospace; white-space: pre-wrap; word-break: break-word; }
+.xbtns { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 8px; }
+.hint.warn { color: var(--rust); }

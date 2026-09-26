@@ -144,3 +144,31 @@ test("room: every socket is told the build the room runs, so an older page can a
   const { ws } = await openRoom(2, 1);
   for (const w of ws) assert.equal(last(w, "joined").version, VERSION);
 });
+
+test("room: after the game the full record goes out only if the host shared it, and it replays to the same end", async () => {
+  const B = await import("../public/shared/bots.js");
+  const { buildRecord, replay, finalTable } = await import("../public/shared/record.js");
+  const { room, ws } = await openRoom(1, 4);
+  const rng = E.makeRng(99);
+  for (let i = 0; i < 20000 && room.room.phase !== "over"; i++) {
+    const st = room.room.state;
+    if (E.mustAct(st).includes(0)) {
+      const { seat, why, p, ...action } = B.decide(E.view(st, 0), E.legalActions(st, 0), "normal", rng);
+      await room.webSocketMessage(ws[0], JSON.stringify({ type: "act", action }));
+    } else await room.pump();
+  }
+  assert.equal(room.room.phase, "over", "the game should have finished");
+  await room.webSocketMessage(ws[0], JSON.stringify({ type: "export" }));
+  assert.deepEqual(last(ws[0], "export"), { type: "export", ok: false, reason: "locked" });
+  room.room.settings.fullExport = true;
+  await room.webSocketMessage(ws[0], JSON.stringify({ type: "export" }));
+  const m = last(ws[0], "export");
+  assert.equal(m.ok, true);
+  const st = room.room.state;
+  const rec = JSON.parse(JSON.stringify(buildRecord({ scope: "full", seed: m.seed, n: st.n, options: m.options, actions: m.actions,
+    passengers: [], result: {}, final: finalTable(st), log: st.log })));
+  const again = replay(rec);
+  assert.equal(again.winner, st.winner);
+  assert.equal(again.turnNo, st.turnNo);
+  assert.deepEqual(finalTable(again), finalTable(st));
+});

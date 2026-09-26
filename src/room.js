@@ -15,6 +15,7 @@ import zh from "../public/i18n/zh-Hant.js";
 import { isFace, passengerName, freeFaces } from "../public/shared/passengers.js";
 import { DWELL, moveTier, louder } from "../public/shared/pace.js";
 import { VERSION } from "../public/shared/version.js";
+import { cleanAction } from "../public/shared/record.js";
 
 const LANGS = { en, "zh-Hant": zh };
 // How long a step waits for a human before the table decides for them.
@@ -150,7 +151,7 @@ export class Room {
     if (!room) {
       if (!create) return reject("noRoom");
       this.room = {
-        code, phase: "lobby", seats: [], settings: { level: "normal", smuggling: false, dlc: false, events: false, lang },
+        code, phase: "lobby", seats: [], settings: { level: "normal", smuggling: false, dlc: false, events: false, fullExport: false, lang },
         state: null, rngState: E.randomSeed(), gen: 0, deadline: 0, stepKey: "",
         log: [], alarmAt: 0, idle: false, lastActive: Date.now(),
       };
@@ -225,6 +226,7 @@ export class Room {
         if (typeof m.smuggling === "boolean") room.settings.smuggling = m.smuggling;
         if (typeof m.dlc === "boolean") room.settings.dlc = m.dlc;
         if (typeof m.events === "boolean") room.settings.events = m.events;
+        if (typeof m.fullExport === "boolean") room.settings.fullExport = m.fullExport;
         this.pushLobby(); break;
       case "addBot":
         if (!isHost || room.phase !== "lobby" || room.seats.length >= MAX_SEATS) return;
@@ -247,6 +249,15 @@ export class Room {
         if (!E.mustAct(room.state).includes(seat.idx)) return;
         try { this.applyAction(action, false); } catch (err) { return this.send(ws, { type: "error", message: err.message }); }
         await this.afterChange(); break;
+      }
+      // After the game: the seed and every move, if the host chose to share them.
+      // A game that began before moves were kept has none to give.
+      case "export": {
+        if (room.phase !== "over" || !room.state) return this.send(ws, { type: "export", ok: false, reason: "notOver" });
+        if (!room.settings.fullExport) return this.send(ws, { type: "export", ok: false, reason: "locked" });
+        if (room.seed == null || !room.actions) return this.send(ws, { type: "export", ok: false, reason: "missing" });
+        this.send(ws, { type: "export", ok: true, seed: room.seed, options: room.options, actions: room.actions, items: room.state.items });
+        break;
       }
       case "chat": {
         if (!seat) return;
@@ -305,8 +316,12 @@ export class Room {
   // ---------- game flow ----------
   async startGame() {
     const room = this.room;
-    room.state = E.createGame(E.randomSeed(), room.seats.length, { smuggling: !!room.settings.smuggling, events: !!room.settings.events,
-      dlc: room.settings.dlc ? Object.fromEntries(E.EXPANSIONS.map((k) => [k, true])) : undefined });
+    // the seed and every move are kept, so the finished game can be exported and replayed
+    room.seed = E.randomSeed();
+    room.options = { smuggling: !!room.settings.smuggling, events: !!room.settings.events,
+      dlc: room.settings.dlc ? Object.fromEntries(E.EXPANSIONS.map((k) => [k, true])) : null };
+    room.actions = [];
+    room.state = E.createGame(room.seed, room.seats.length, room.options);
     room.phase = "game"; room.gen++; room.stepKey = ""; room.log = [];
     for (const s of room.seats) s.ready = false;
     this.pushLobby();
@@ -322,6 +337,7 @@ export class Room {
     const view = isBot ? E.view(before, action.seat) : null;
     const logBefore = before.log.length;
     room.state = E.apply(before, action);
+    if (room.actions) room.actions.push(cleanAction(before.turnNo, action));
     // what this move showed sets how long the table holds before a bot moves again
     this.tier = louder(this.tier || "silent", moveTier(before, room.state));
     if (isBot) {
