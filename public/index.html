@@ -78,6 +78,7 @@
 <header class="top">
   <a href="." data-link class="brand disp" data-t="title">末班夜車</a>
   <nav>
+    <button type="button" id="voiceBtn" class="linkish vbtn" hidden></button>
     <a href="rules" data-t="nav.rules">規則</a>
     <button type="button" id="langBtn" class="linkish" data-t="nav.lang"></button>
   </nav>
@@ -163,9 +164,11 @@
   </div>
   <!-- The conductor's manifest: one numbered row per seat. -->
   <div class="card manifest">
-    <div class="row between"><span class="lab" id="lbSeatsLab"></span><span class="hint" id="lbNeed"></span></div>
+    <div class="row between"><span class="lab" id="lbSeatsLab"></span><span class="row" style="gap:10px"><span class="hint" id="lbNeed"></span><span class="hint" id="lbVoiceN"></span></span></div>
     <table id="lbSeats"></table>
   </div>
+  <!-- Voice: an offer to join, your microphone once in, or what went wrong. -->
+  <div id="lbVoice" hidden></div>
   <div id="lbHost" class="card stack" hidden>
     <div class="row between"><span class="lab" data-t="lobby.settings"></span><span class="tag host" data-t="lobby.onlyHost"></span></div>
     <div class="seg" id="lbLevel">
@@ -179,6 +182,15 @@
     <label class="check"><span><b data-t="setup.events"></b><span class="hint block" data-t="setup.eventsHint"></span></span><input type="checkbox" id="lbEv"></label>
     <div class="dlccards evcards" id="lbEvCards" hidden></div>
     <label class="check"><span><b data-t="lobby.fullExport"></b><span class="hint block" data-t="lobby.fullExportHint"></span></span><input type="checkbox" id="lbFull"></label>
+    <div class="stack" id="lbVoiceSet" style="gap:8px" hidden>
+      <b data-t="voice.setting"></b>
+      <div class="seg" id="lbVoiceMode">
+        <button type="button" data-voice="off" data-t="voice.off"></button>
+        <button type="button" data-voice="ptt" data-t="voice.ptt"></button>
+        <button type="button" data-voice="open" data-t="voice.open"></button>
+      </div>
+      <span class="hint" data-t="voice.settingHint"></span>
+    </div>
   </div>
   <div class="log" id="lbLog"></div>
   <div class="row"><input id="lbChat" maxlength="200" autocomplete="off"><button type="button" class="btn sm" id="lbSend">↑</button></div>
@@ -196,7 +208,7 @@
   <div id="hand"></div>
   <!-- Carriage talk: what the passengers say and what the carriage announces. -->
   <div class="card talk fd" id="talk">
-    <button type="button" class="hd" id="talkHd"><span class="lab" data-t="table.talk"></span><span class="preview" id="talkCount"></span><svg class="caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+    <button type="button" class="hd" id="talkHd"><span class="lab" data-t="table.talk"></span><span class="preview" id="talkCount"></span><span class="preview vpv" id="talkVoice" hidden></span><svg class="caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
     <div class="body" id="talkBody">
       <div class="msgs" id="log" aria-live="polite"></div>
       <div class="quick" id="quick" hidden></div>
@@ -226,6 +238,9 @@
     <button type="button" class="btn p" id="staleGo" data-t="stale.reload"></button></div>
 </div>
 <!-- ===== Card and trade texts, as a bottom sheet ===== -->
+<!-- Voice: the talk button at the lower right, and a line at the top when voice comes back. -->
+<div id="ptt" class="ptt" hidden><button type="button" class="b" id="pttBtn"></button><span class="cap" id="pttCap"></span></div>
+<div id="vtoast" class="vtoast" hidden role="status"></div>
 <div id="scrim" class="scrim" hidden></div>
 <div id="sheet" class="sheet" hidden></div>
 

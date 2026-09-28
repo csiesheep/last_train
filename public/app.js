@@ -13,6 +13,7 @@ import { DWELL, moveTier } from "./shared/pace.js";
 import { looksFromLog, isStale } from "./shared/seen.js";
 import { VERSION } from "./shared/version.js";
 import { buildRecord, cleanAction, finalTable, resultOf } from "./shared/record.js";
+import { createVoice, canVoice, isIOS } from "./voice.js";
 
 const LANGS = { en, "zh-Hant": zh };
 const $ = (id) => document.getElementById(id);
@@ -65,11 +66,22 @@ const PATHS = {
   sword: '<path d="M4 20l11-11"/><path d="M14 5l5 5"/><path d="M12 7l5 5"/><path d="M6 14l4 4"/>',
   shield: '<path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"/>',
   out: '<circle cx="12" cy="12" r="8"/><path d="M8 12h8"/>',
+  mic: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0"/><path d="M12 17.5V21"/>',
+  micoff: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0"/><path d="M12 17.5V21"/><path d="M4 4l16 16"/>',
+  ear: '<path d="M7 10a5 5 0 0 1 10 0c0 3-3 4-3 7a3 3 0 0 1-5 2"/><path d="M10 10a2 2 0 0 1 4 0"/>',
+  vol: '<path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16.5 9a4 4 0 0 1 0 6"/>',
+  robot: '<rect x="5" y="8" width="14" height="11" rx="2"/><path d="M12 4v4"/><circle cx="9.5" cy="13" r="1"/><circle cx="14.5" cy="13" r="1"/>',
+  wifi: '<path d="M3 9a13 13 0 0 1 18 0"/><path d="M6.5 12.5a8 8 0 0 1 11 0"/><path d="M10 16a3 3 0 0 1 4 0"/>',
+  lock: '<rect x="5" y="11" width="14" height="9" rx="1.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
+  moon: '<path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/>',
+  compass: '<circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/>',
+  phone: '<rect x="7" y="2.5" width="10" height="19" rx="2"/><path d="M11 18.5h2"/>',
 };
 const icon = (kind, size = 18) => svg(PATHS[kind] || '<circle cx="12" cy="12" r="7"/>', size);
 
 // ---------- language ----------
 let lang = "en", S = en;
+let voice = null; // the compartment's voice, made once the page's functions exist (below)
 function t(key, p = {}) {
   const v = key.split(".").reduce((o, k) => (o ? o[k] : undefined), S);
   return String(v ?? key).replace(/\{(\w+)\}/g, (_, k) => (p[k] ?? `{${k}}`));
@@ -89,6 +101,7 @@ function setLang(l) {
   renderSetup();
   if (game.mode === "solo" && game.st) { game.names = soloNames(); rebuildLog(); render(); }
   if (game.mode === "net") { if (game.lobby) renderLobby(); if (game.view) { rebuildLog(); render(); } }
+  renderVoice();
 }
 $("langBtn").addEventListener("click", () => setLang(lang === "en" ? "zh-Hant" : "en"));
 const num = (n) => (S.nums && S.nums[n - 1]) || String(n);
@@ -533,7 +546,8 @@ function rebuildLog() {
 // ---------- compartments ----------
 const wsBase = () => (location.protocol === "https:" ? "wss://" : "ws://") + location.host + location.pathname.replace(/[^/]*$/, "") + "ws";
 function connect(params) {
-  leaveRoom(true);
+  // the same room again (the socket dropped) keeps voice; the room re-admits it on "joined"
+  leaveRoom(true, !!params.code && params.code === game.code);
   clearTimeout(game.botTimer);
   game.mode = "net"; game.st = null; game.view = null; game.legal = []; game.lobby = null; game.closed = false;
   game.log = []; game.logSeen = 0; game.names = []; game.me = null; game.gen = -1; game.ui = freshUi();
@@ -550,12 +564,14 @@ function connect(params) {
   };
 }
 function send(m) { if (game.ws && game.ws.readyState === 1) game.ws.send(JSON.stringify(m)); }
-function leaveRoom(silent = false) {
+function leaveRoom(silent = false, keepVoice = false) {
   if (game.mode !== "net") return;
   game.closed = true;
   if (game.ws) { if (!silent) send({ type: "leave" }); try { game.ws.close(); } catch {} }
   game.ws = null; game.lobby = null; game.view = null; game.legal = []; game.code = null;
   clearInterval(game.clock); clearTimeout(game.netTimer);
+  if (!keepVoice) { voice.leave(false); vui.textOnly = false; }
+  renderVoice();
 }
 const roomLine = (e) => ({ seat: e.sys ? null : e.seat, text: e.text, hot: e.hot, room: true });
 function onMsg(m) {
@@ -566,13 +582,18 @@ function onMsg(m) {
       if (m.version && m.version !== VERSION) $("stale").hidden = false;
       game.code = m.code; game.me = m.seat >= 0 ? m.seat : null;
       if (m.token) sess.set("lt.token." + m.code, m.token);
+      // the room forgets voice when a socket goes; after a reconnect, join it again
+      if (voice.status !== "none") voice.rebuild(null);
       if (!location.search.includes("room=" + m.code)) history.replaceState(null, "", location.pathname + "?room=" + m.code);
       break;
     case "lobby":
       game.lobby = m;
       if (m.phase === "lobby" || !game.view) { game.view = null; show("lobby"); }
       renderLobby();
+      voiceRoster();
       break;
+    case "voice":
+      voice.onReply(m); break;
     case "log":
       game.log = m.entries.map(roomLine); game.logSeen = 0;
       renderLog(); renderLobbyLog(); break;
@@ -650,6 +671,7 @@ function renderLobby() {
     else if (!s.connected) tags.push(h("span", { class: "tag off" }, t("lobby.away")));
     else if (s.idx !== 0) tags.push(h("span", { class: "tag" + (s.ready ? " ok" : "") }, s.ready ? t("lobby.ready") : t("lobby.notReady")));
     if (host && s.ai && L.phase === "lobby") tags.push(h("button", { type: "button", class: "tag x", onclick: () => send({ type: "removeBot", idx: s.idx }) }, t("lobby.remove")));
+    const mb = micBadge(s); if (mb) tags.push(mb);
     box.append(h("tr", {}, h("td", { class: "no lat" }, String(s.idx + 1)),
       h("td", { class: "av" }, s.face ? h("img", { class: "face sm", src: "art/face_" + s.face + ".jpg", alt: "" }) : h("span", { class: "face sm init" }, [...s.name][0] || "?")),
       h("td", { class: "nm" }, s.name, s.idx === game.me ? h("small", { class: "muted" }, ` · ${t("lobby.you")}`) : null),
@@ -665,6 +687,8 @@ function renderLobby() {
   dlcCards($("lbDlcCards"), !!L.settings.dlc);
   $("lbEv").checked = !!L.settings.events;
   $("lbFull").checked = !!L.settings.fullExport;
+  document.querySelectorAll("#lbVoiceMode button").forEach((b) => b.classList.toggle("on", b.dataset.voice === voiceMode()));
+  $("lbVoiceSet").hidden = !L.voiceOk;
   eventCards($("lbEvCards"), !!L.settings.events);
   const me = L.seats.find((s) => s.idx === game.me);
   $("lbReady").hidden = host || !me || L.phase !== "lobby";
@@ -697,6 +721,7 @@ $("lbSmug").addEventListener("change", (e) => send({ type: "settings", smuggling
 $("lbDlc").addEventListener("change", (e) => send({ type: "settings", dlc: e.target.checked }));
 $("lbEv").addEventListener("change", (e) => send({ type: "settings", events: e.target.checked }));
 $("lbFull").addEventListener("change", (e) => send({ type: "settings", fullExport: e.target.checked }));
+document.querySelectorAll("#lbVoiceMode button").forEach((b) => b.addEventListener("click", () => send({ type: "settings", voice: b.dataset.voice })));
 const chatSend = (inp) => { const text = inp.value.trim(); if (!text) return; send({ type: "chat", text }); inp.value = ""; };
 $("lbSend").addEventListener("click", () => chatSend($("lbChat")));
 $("lbChat").addEventListener("keydown", (e) => { if (e.key === "Enter") chatSend($("lbChat")); });
@@ -714,6 +739,188 @@ $("btnJoin").addEventListener("click", () => {
 });
 $("joinCode").addEventListener("keydown", (e) => { if (e.key === "Enter") $("btnJoin").click(); });
 $("landName").addEventListener("input", (e) => { setup.name = e.target.value.trim().slice(0, 16); store.set("lt.name", setup.name); $("nameInput").value = setup.name; });
+
+// ---------- voice ----------
+// The compartment's voice, drawn in five places: a card in the lobby (the same card
+// opens in a sheet from the mic in the header at the table), a mark on each face,
+// the talk button at the lower right, a section in a passenger's sheet, and a line
+// at the top when voice comes back after the page was away.
+const vui = { textOnly: false, sheet: false, toastTimer: 0 };
+voice = createVoice({ send, changed: () => renderVoice(), levels: () => paintVoice() });
+const voiceMode = () => (game.lobby && game.lobby.settings && game.lobby.settings.voice) || "ptt";
+// Voice is there for a seated passenger in a compartment whose conductor left it on.
+const voiceHere = () => game.mode === "net" && !!game.lobby && !!game.lobby.voiceOk && voiceMode() !== "off" && game.me !== null;
+const lobbySeat = (i) => (game.lobby ? game.lobby.seats.find((s) => s.idx === i) : null);
+const talkingKey = (seat) => (seat === game.me ? "me" : seat);
+const seatTalking = (seat) => !!voice.speaking[talkingKey(seat)];
+function voiceRoster() {
+  if (!game.lobby) return;
+  if (!voiceHere() && voice.status !== "none") voice.leave(false);
+  voice.setMode(voiceMode());
+  voice.sync(game.lobby.seats, game.me);
+  renderVoice();
+}
+function joinVoice(withMic) { vui.textOnly = false; voice.join(withMic); }
+function micBadge(s) {
+  if (!game.lobby || !game.lobby.voiceOk || voiceMode() === "off") return null;
+  if (s.ai) return h("span", { class: "mic bot", title: t("voice.st.bot") }, icon("robot", 14));
+  const st = s.voice && s.voice.state; if (!st) return null;
+  const [cls, ic] = { live: ["on", "mic"], muted: ["off", "micoff"], listen: ["", "ear"], away: ["", "moon"] }[st] || ["", "mic"];
+  return h("span", { class: "mic " + cls, "data-seat": s.idx, title: t("voice.st." + st) }, icon(ic, 14));
+}
+function stateCard(ic, tone, title, body, ...btns) {
+  return h("div", { class: "card vstate " + tone },
+    h("div", { class: "row", style: "gap:10px" }, h("span", { class: "mic big " + (tone === "brass" ? "on" : tone === "rust" ? "off" : "") }, icon(ic, 18)), h("b", { class: "small grow" }, title)),
+    h("span", { class: "hint" }, body), btns.length ? h("div", { class: "vbtns" }, ...btns) : null);
+}
+function voiceCard() {
+  if (voiceMode() === "off") return stateCard("lock", "", t("voice.offTitle"), t("voice.offBody"));
+  if (!canVoice()) return stateCard("micoff", "", t("voice.lab"), t("voice.unsupported"));
+  const st = voice.status;
+  if (st === "joining") return stateCard("mic", "brass", t("voice.joining"), t("voice.askBody"));
+  if (st === "reconnecting") return stateCard("wifi", "", t("voice.reconnTitle"), t("voice.reconnBody"), btn(t("voice.leave"), "ghost", () => voice.leave()));
+  if (st === "none") {
+    if (voice.notice === "failed") return stateCard("wifi", "rust", t("voice.failedTitle"), t("voice.failedBody"), btn(t("voice.join"), "p", () => joinVoice(true)));
+    if (vui.textOnly) return h("div", { class: "card vmini" }, h("span", { class: "hint grow" }, t("voice.textChosen")),
+      btn(t("voice.listenOnly"), "ghost sm", () => joinVoice(false)), btn(t("voice.joinShort"), "sm", () => joinVoice(true)));
+    return stateCard("mic", "brass", t("voice.askTitle"), t("voice.askBody"),
+      btn(t("voice.textOnly"), "ghost", () => { vui.textOnly = true; renderVoice(); }), btn(t("voice.join"), "p", () => joinVoice(true)));
+  }
+  const dismiss = () => { voice.notice = null; renderVoice(); };
+  if (voice.notice === "home") return stateCard("phone", "rust", t("voice.homeTitle"), t("voice.homeBody"),
+    btn(h("span", { class: "row", style: "gap:8px" }, icon("compass", 16), t("voice.homeCopy")), "p wide", async (e) => {
+      const b = e.currentTarget;
+      try { await navigator.clipboard.writeText(location.origin + location.pathname + "?room=" + game.code); b.textContent = t("voice.copied"); } catch {}
+    }),
+    btn(t("voice.listenOnly"), "ghost wide", dismiss));
+  if (voice.notice === "blocked") return stateCard("micoff", "rust", t("voice.blockedTitle"), t("voice.blockedBody"),
+    btn(t("voice.listenOnly"), "ghost", dismiss), btn(t("voice.retry"), "", () => voice.addMic()));
+  if (!voice.mic) return stateCard("ear", "", t("voice.listenTitle"), t("voice.listenBody"),
+    btn(t("voice.wantTalk"), "ghost", () => voice.addMic()), btn(t("voice.leave"), "ghost", () => voice.leave()));
+  const line = voice.muted ? t("voice.micMuted") : voice.mode === "ptt" ? t("voice.micPtt") : t("voice.micOpen");
+  return h("div", { class: "card vcard" },
+    h("div", { class: "row between" }, h("span", { class: "lab" }, t("voice.lab")), h("span", { class: "tag ok" }, t("voice.connected"))),
+    h("div", { class: "row", style: "gap:12px" }, h("span", { class: "mic big2 " + (voice.muted ? "off" : "on") }, icon(voice.muted ? "micoff" : "mic", 20)),
+      h("div", { class: "stack grow", style: "gap:6px" }, h("span", { class: "small" }, line), h("div", { class: "vmeter" }, ...Array.from({ length: 14 }, () => h("i"))))),
+    h("div", { class: "vbtns" },
+      btn(h("span", { class: "row", style: "gap:8px" }, icon(voice.muted ? "mic" : "micoff", 16), voice.muted ? t("voice.unmute") : t("voice.mute")), "ghost", () => voice.setMuted(!voice.muted)),
+      btn(t("voice.leave"), "ghost", () => voice.leave())));
+}
+function openVoiceSheet() { openSheet(voiceCard(), h("div", { class: "row between" }, h("span"), btn(t("sheet.close"), "ghost sm", closeSheet))); vui.sheet = true; }
+// A passenger's sheet: are they talking, how loud they are for you, or silence them for you alone.
+function voiceSection(seat) {
+  if (!voiceHere()) return [];
+  const s = lobbySeat(seat);
+  if (!s || seat === game.me) return [];
+  if (s.ai) return [h("div", { class: "rule" }),
+    h("div", { class: "row between" }, h("span", { class: "lab" }, t("voice.lab")), h("span", { class: "hint row", style: "gap:4px" }, icon("robot", 13), t("voice.st.bot"))),
+    h("span", { class: "hint" }, t("voice.botLine"))];
+  const st = s.voice ? (seatTalking(seat) ? "talking" : s.voice.state) : "none";
+  const out = [h("div", { class: "rule" }), h("div", { class: "row between" }, h("span", { class: "lab" }, t("voice.lab")), h("span", { class: "hint" }, t("voice.st." + st)))];
+  if (voice.status === "none") out.push(h("span", { class: "hint" }, t("voice.notHeard")));
+  else if (s.voice) {
+    const v = voice.vol[seat] ?? 100;
+    const pct = h("span", { class: "hint vpct" }, v + "%");
+    const range = h("input", { type: "range", min: "0", max: "150", step: "5", value: String(v), class: "vrange", "aria-label": t("voice.volume") });
+    range.addEventListener("input", () => { voice.setVolume(seat, +range.value); pct.textContent = range.value + "%"; });
+    const chk = h("input", { type: "checkbox", checked: !!voice.mutedFor[seat] });
+    chk.addEventListener("change", () => voice.setMutedFor(seat, chk.checked));
+    out.push(h("div", { class: "row", style: "gap:12px" }, h("span", { class: "muted row" }, icon("vol", 18)), range, pct),
+      h("label", { class: "check" }, h("span", { class: "small" }, t("voice.muteFor")), chk),
+      h("span", { class: "hint" }, t("voice.muteForHint")));
+  }
+  return out;
+}
+function renderVoice() {
+  if (!voice) return;
+  const here = voiceHere(), L = game.lobby;
+  const inVoice = L ? L.seats.filter((s) => s.voice).length : 0;
+  // the header's mic at the table: how many are in voice; a tap opens the card
+  const vb = $("voiceBtn");
+  vb.hidden = !here || $("view-table").hidden;
+  if (!vb.hidden) {
+    clear(vb).append(icon(voice.status === "none" ? "micoff" : "mic", 15), h("span", {}, String(inVoice)));
+    vb.classList.toggle("on", voice.status !== "none");
+    vb.setAttribute("aria-label", t("voice.inVoice", { n: inVoice }));
+  }
+  // the lobby's card
+  const box = clear($("lbVoice"));
+  // the conductor who turned voice off has the setting in front of them; everyone else is told
+  const card = L && L.voiceOk && game.me !== null && !(voiceMode() === "off" && game.me === 0) ? voiceCard() : null;
+  box.hidden = !card; if (card) box.append(card);
+  $("lbVoiceN").textContent = here && inVoice ? t("voice.inVoice", { n: inVoice }) : "";
+  if (vui.sheet && !$("sheet").hidden) openVoiceSheet();
+  // the talk button
+  const onScreen = !$("view-lobby").hidden || !$("view-table").hidden;
+  const ptt = $("ptt");
+  ptt.hidden = !(here && onScreen && voice.mic && (voice.status === "on" || voice.status === "reconnecting"));
+  document.body.classList.toggle("has-ptt", !ptt.hidden);
+  if (!ptt.hidden) {
+    const b = $("pttBtn"), open = voice.mode === "open";
+    b.classList.toggle("live", !voice.muted && (open || voice.pressing));
+    b.classList.toggle("held", !open && voice.pressing && !voice.muted);
+    b.classList.toggle("off", voice.muted);
+    clear(b).append(icon(voice.muted ? "micoff" : "mic", 26));
+    const cap = open ? t(voice.muted ? "voice.tapUnmute" : "voice.tapMute") : voice.muted ? t("voice.mutedCap") : voice.pressing ? t("voice.release") : t("voice.hold");
+    $("pttCap").textContent = cap; b.setAttribute("aria-label", cap);
+  }
+  // voice back after the page was away, or sound waiting for a tap
+  const toast = $("vtoast"), back = voice.notice === "back";
+  toast.hidden = !(here && (back || voice.needTap));
+  if (!toast.hidden) {
+    clear(toast).append(h("span", { class: "ic" }, icon(back ? "wifi" : "vol", 18)),
+      h("div", { class: "stack", style: "gap:2px" }, h("b", { class: "small" }, back ? t("voice.backTitle") : t("voice.tap")), back ? h("span", { class: "hint" }, t(isIOS() ? "voice.backIos" : "voice.backBody")) : null));
+    if (back && !vui.toastTimer) vui.toastTimer = setTimeout(() => { vui.toastTimer = 0; if (voice.notice === "back") { voice.notice = null; renderVoice(); } }, 8000);
+  }
+  paintVoice();
+}
+// Ten times a second while voice is on: who is talking and how loud.
+function paintVoice() {
+  if (!voice) return;
+  const on = voiceHere();
+  for (const el of document.querySelectorAll("#seats .seat")) {
+    const seat = +el.dataset.seat, s = lobbySeat(seat);
+    const st = on && s && !s.ai && s.voice ? s.voice.state : null;
+    const talking = on && seatTalking(seat);
+    const want = talking ? "lvl" : st === "muted" ? "mute" : st === "listen" ? "ear" : st === "away" ? "away" : "";
+    const pp = el.querySelector(".pp");
+    let b = pp.querySelector(".vb");
+    if ((b ? b.dataset.k : "") !== want) {
+      if (b) b.remove();
+      b = !want ? null : want === "lvl" ? h("span", { class: "vb lvl", "data-k": want }, h("i"), h("i"), h("i"))
+        : h("span", { class: "vb " + want, "data-k": want }, icon(want === "mute" ? "micoff" : want === "ear" ? "ear" : "moon", 11));
+      if (b) pp.append(b);
+    }
+    if (want === "lvl") { const lv = voice.level[talkingKey(seat)] || 0; [...b.children].forEach((i, k) => { i.style.height = Math.round(4 + lv * [7, 10, 8][k]) + "px"; }); }
+    el.classList.toggle("speak", talking);
+    el.classList.toggle("away", st === "away");
+  }
+  for (const m of document.querySelectorAll("#lbSeats .mic[data-seat]")) m.classList.toggle("talk", on && seatTalking(+m.dataset.seat));
+  const lv = voice.level.me || 0;
+  for (const mt of document.querySelectorAll(".vmeter")) [...mt.children].forEach((c, i) => c.classList.toggle("on", i < Math.round(lv * mt.children.length)));
+  // the talk fold's preview says who is talking, or who cannot hear
+  const who = on ? game.lobby.seats.filter((s) => seatTalking(s.idx)).map((s) => (s.idx === game.me ? t("table.you") : s.name)) : [];
+  const away = on ? game.lobby.seats.find((s) => s.voice && s.voice.state === "away" && s.idx !== game.me) : null;
+  const text = who.length ? t("voice.says", { names: who.join(lang === "en" ? ", " : "、") }) : away && !folds.talk ? t("voice.awaySays", { name: away.name }) : "";
+  $("talkVoice").hidden = !text; $("talkVoice").textContent = text;
+  $("talkCount").hidden = !!text;
+}
+$("voiceBtn").addEventListener("click", openVoiceSheet);
+{
+  const b = $("pttBtn");
+  b.addEventListener("pointerdown", (e) => {
+    e.preventDefault();
+    if (voice.mode === "open") { voice.setMuted(!voice.muted); return; }
+    if (voice.muted) { openVoiceSheet(); return; }
+    try { b.setPointerCapture(e.pointerId); } catch {}
+    voice.press(true);
+  });
+  const up = () => { if (voice.mode !== "open") voice.press(false); };
+  for (const ev of ["pointerup", "pointercancel", "lostpointercapture"]) b.addEventListener(ev, up);
+  b.addEventListener("contextmenu", (e) => e.preventDefault());
+}
+document.addEventListener("visibilitychange", () => { if (document.hidden) voice.press(false); voice.visibility(document.hidden); });
+document.addEventListener("pointerdown", () => voice.tap(), true);
 function describe(e) {
   const L = (k, p) => t("log." + k, p);
   const parts = [];
@@ -934,7 +1141,7 @@ function renderSeats(v, legal) {
     const face = ringFace(s);
     face.style.width = face.style.height = (big ? size[1] : size[0]) + "px";
     const you = me ? (lang === "en" ? ` (${t("table.you")})` : `（${t("table.you")}）`) : "";
-    const el = h("div", { class: "seat" + (me ? " me" : "") + (role ? " " + role : "") + (big ? " big" : "") + (pick ? " pick" : ""), style: `left:${x}px;top:${y}px` },
+    const el = h("div", { class: "seat" + (me ? " me" : "") + (role ? " " + role : "") + (big ? " big" : "") + (pick ? " pick" : ""), "data-seat": s, style: `left:${x}px;top:${y}px` },
       h("button", { type: "button", class: "pp", onclick: pick ? () => onSeatPick(v, legal, s) : () => openPassengerSheet(v, s) }, face, shown && x <= CX ? shown : null, shown && x > CX ? shown : null),
       h("span", { class: "plate" }, nameOf(s) + you), stat);
     if (shown) shown.classList.add(x <= CX ? "l" : "r");
@@ -943,6 +1150,7 @@ function renderSeats(v, legal) {
   }
   box._n = n;
   renderSays();
+  paintVoice();
 }
 
 // Who is talking, drawn over the ring. Up to six seats the words themselves sit
@@ -1055,6 +1263,7 @@ function openPassengerSheet(v, seat) {
     tradeKnown ? h("div", { class: "row", style: "gap:10px" }, h("button", { type: "button", class: "thumbbtn", onclick: () => openTradeSheet(tradeKnown, seat) }, tradeImg(tradeKnown, "thumb56")), h("div", { class: "stack", style: "gap:0" }, h("b", {}, tradeName(tradeKnown)), h("span", { class: "hint" }, t(tradeDef && tradeDef.once ? "reveal.once" : "reveal.always") + (sd.tradeUsed ? " · " + t("sheet.used") : "")))) : q(),
     h("div", { class: "row between" }, h("span", { class: "hint" }, t("sheet.bags", { n: sd.items })), h("span", { class: "hint" }, me ? "" : t("sheet.knownHint"))),
     h("div", { class: "row wrap", style: "gap:8px" }, ...kinds.map((kind) => h("button", { type: "button", class: "thumbbtn", onclick: () => openItemSheet(kind) }, itemImg(kind, "thumb56"))), ...Array.from({ length: unknown }, q)),
+    ...voiceSection(seat),
     h("div", { class: "rule" }),
     h("div", { class: "row between" }, h("span", { class: "hint" }, t("sheet.tapAny")), btn(t("sheet.close"), "ghost sm", closeSheet)));
 }
@@ -1086,8 +1295,8 @@ const pic = (kind, o = {}) => h("button", { type: "button", class: "pic" + (o.cl
 const thumb = (kind, onclick) => h("button", { type: "button", class: "thumbbtn", title: itemName(kind), onclick }, itemImg(kind, "thumb"));
 
 // ---------- the bottom sheet: what a card or a trade does ----------
-function openSheet(...children) { const sh = clear($("sheet")); sh.classList.remove("xsheet"); sh.append(h("div", { class: "grip" }), ...children.filter((c) => c != null && c !== false)); sh.hidden = false; $("scrim").hidden = false; }
-function closeSheet() { $("sheet").hidden = true; $("scrim").hidden = true; $("sheet").classList.remove("xsheet"); exp.open = false; }
+function openSheet(...children) { vui.sheet = false; const sh = clear($("sheet")); sh.classList.remove("xsheet"); sh.append(h("div", { class: "grip" }), ...children.filter((c) => c != null && c !== false)); sh.hidden = false; $("scrim").hidden = false; }
+function closeSheet() { $("sheet").hidden = true; $("scrim").hidden = true; $("sheet").classList.remove("xsheet"); exp.open = false; vui.sheet = false; }
 $("scrim").addEventListener("click", closeSheet);
 function openItemSheet(kind, where = "") {
   const def = E.ITEM_BY_KIND[kind] || {};
@@ -2000,7 +2209,7 @@ const kindOf = (v, id) => (v.me.items.find((x) => x.id === id) || {}).kind || id
 
 // ---------- routing ----------
 const views = ["landing", "tutorial", "setup", "lobby", "table"];
-function show(name) { closeSheet(); for (const v of views) $("view-" + v).hidden = v !== name; if (name !== "table") $("overlay").hidden = true; }
+function show(name) { closeSheet(); for (const v of views) $("view-" + v).hidden = v !== name; if (name !== "table") $("overlay").hidden = true; renderVoice(); }
 function go(q) { history.pushState(null, "", location.pathname + q); route(); }
 function route() {
   const q = new URLSearchParams(location.search);

@@ -440,3 +440,46 @@ td .row { gap: 4px; flex-wrap: wrap; }
 .xprev { margin: 0; max-height: 132px; overflow: hidden; padding: 10px 12px; background: var(--deep); border: 1px solid var(--line); border-radius: 2px; color: #b7bccb; font: 11.5px/1.6 Consolas, "SFMono-Regular", Menlo, "Noto Sans TC", monospace; white-space: pre-wrap; word-break: break-word; }
 .xbtns { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 8px; }
 .hint.warn { color: var(--rust); }
+
+/* ---------- voice ---------- */
+.vbtn { display: inline-flex; align-items: center; gap: 4px; color: var(--grey); font-size: 12px; }
+.vbtn.on { color: var(--brass-hi); }
+.mic { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--line); color: var(--grey); flex-shrink: 0; }
+.mic.on { color: var(--deep); background: var(--brass-hi); border-color: var(--brass-hi); }
+.mic.off { color: var(--rust); border-color: #5a2a22; }
+.mic.bot { opacity: 0.45; }
+.mic.talk { color: var(--deep); background: var(--bone); border-color: var(--bone); box-shadow: 0 0 0 3px rgba(201, 165, 79, 0.35); }
+.mic.big { width: 36px; height: 36px; }
+.mic.big2 { width: 44px; height: 44px; }
+.vstate, .vcard { display: flex; flex-direction: column; gap: 10px; }
+.vstate.brass { border-color: var(--brass); }
+.vstate.rust { border-color: #5a2a22; }
+.vbtns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.vbtns .btn.wide { grid-column: 1 / -1; }
+.vbtns .btn:only-child { grid-column: 1 / -1; }
+.vmini { display: flex; flex-direction: row; align-items: center; gap: 8px; flex-wrap: wrap; }
+.vmeter { display: flex; gap: 3px; }
+.vmeter i { flex: 1; height: 6px; border-radius: 1px; background: var(--line); }
+.vmeter i.on { background: var(--brass-hi); }
+/* at the table: a double brass ring around whoever is talking, a level badge at the lower left */
+.seat.speak .face { border-color: var(--brass-hi); box-shadow: 0 0 0 3px var(--ground), 0 0 0 5px rgba(201, 165, 79, 0.85), 0 0 18px 6px rgba(201, 165, 79, 0.35); }
+.seat.away .face { opacity: 0.38; filter: grayscale(0.6); }
+.vb { position: absolute; bottom: -2px; right: -4px; width: 18px; height: 18px; border-radius: 50%; background: var(--card); display: flex; align-items: center; justify-content: center; box-shadow: 0 0 0 2px var(--ground); pointer-events: none; z-index: 2; }
+.vb.mute { border: 1px solid #5a2a22; color: var(--rust); }
+.vb.ear { border: 1px solid var(--line); color: var(--grey); }
+.vb.away { border: 1px solid #4a5468; color: #b7bccb; }
+.vb.lvl { left: -4px; right: auto; width: 22px; border-radius: 9px; background: var(--brass-hi); align-items: flex-end; gap: 2px; padding: 3px 0; }
+.vb.lvl i { width: 3px; height: 4px; background: var(--deep); border-radius: 1px; display: block; transition: height 0.09s linear; }
+.talk .hd .vpv { color: var(--brass-hi); }
+/* the talk button: held, it lights up; above the reveal and results, below any sheet */
+.ptt { position: fixed; right: 16px; bottom: calc(18px + env(safe-area-inset-bottom)); z-index: 15; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.ptt .b { width: 64px; height: 64px; border-radius: 50%; border: 1px solid var(--line); background: var(--card); color: var(--bone); display: flex; align-items: center; justify-content: center; box-shadow: 0 10px 24px -8px rgba(0, 0, 0, 0.9); cursor: pointer; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.ptt .b.live { background: var(--brass-hi); color: var(--deep); border-color: var(--brass-hi); }
+.ptt .b.held { background: var(--bone); border-color: var(--bone); box-shadow: 0 0 0 4px rgba(201, 165, 79, 0.45), 0 10px 24px -8px rgba(0, 0, 0, 0.9); }
+.ptt .b.off { color: var(--rust); border-color: #5a2a22; }
+.ptt .cap { font-size: 11px; color: var(--bone); background: rgba(9, 12, 19, 0.85); padding: 1px 7px; border-radius: 2px; white-space: nowrap; pointer-events: none; }
+body.has-ptt .scr, body.has-ptt .overlay { padding-bottom: 104px; }
+.vtoast { position: fixed; top: 10px; left: 50%; transform: translateX(-50%); width: calc(100% - 32px); max-width: 448px; z-index: 30; display: flex; gap: 10px; align-items: flex-start; border: 1px solid var(--jade); background: #10201d; border-radius: 2px; padding: 10px 12px; }
+.vtoast .ic { color: var(--jade); margin-top: 1px; }
+.vrange { flex: 1; accent-color: var(--brass-hi); min-width: 0; }
+.vpct { width: 40px; text-align: right; }

@@ -33,11 +33,11 @@ globalThis.Response = class extends NativeResponse {
   constructor(body, init) { super(body, init && init.status === 101 ? { ...init, status: 200 } : init); }
 };
 
-async function openRoom(humans, bots) {
+async function openRoom(humans, bots, env = {}, start = true) {
   const sent = [];
   globalThis.WebSocketPair = pairFactory(sent);
   const { ctx, sockets } = fakeCtx();
-  const room = new Room(ctx, {});
+  const room = new Room(ctx, env);
   const ws = [];
   for (let i = 0; i < humans; i++) {
     const url = i === 0 ? "https://room/ws?create=1&room=TEST&name=Host&lang=en" : `https://room/ws?room=TEST&name=P${i}&lang=en`;
@@ -46,7 +46,7 @@ async function openRoom(humans, bots) {
   }
   for (let i = 0; i < bots; i++) await room.webSocketMessage(ws[0], JSON.stringify({ type: "addBot" }));
   for (let i = 1; i < humans; i++) await room.webSocketMessage(ws[i], JSON.stringify({ type: "ready", ready: true }));
-  await room.webSocketMessage(ws[0], JSON.stringify({ type: "start" }));
+  if (start) await room.webSocketMessage(ws[0], JSON.stringify({ type: "start" }));
   return { room, ws, sent };
 }
 const last = (ws, type) => [...ws.sent].reverse().find((m) => m.type === type);
@@ -171,4 +171,62 @@ test("room: after the game the full record goes out only if the host shared it, 
   assert.equal(again.winner, st.winner);
   assert.equal(again.turnNo, st.turnNo);
   assert.deepEqual(finalTable(again), finalTable(st));
+});
+
+test("room: voice goes through the room to the SFU with the secret, and a page only ever pulls seats of its own room", async () => {
+  const calls = [];
+  const realFetch = globalThis.fetch;
+  let n = 0;
+  globalThis.fetch = async (url, init) => {
+    const body = init.body ? JSON.parse(init.body) : null;
+    calls.push({ url, method: init.method, auth: init.headers.Authorization, body });
+    if (url.endsWith("/sessions/new")) return NativeResponse.json({ sessionId: "sess" + ++n });
+    if (url.endsWith("/tracks/new") && body.tracks[0].location === "local") return NativeResponse.json({ sessionDescription: { type: "answer", sdp: "ANSWER" }, tracks: [{ mid: "0", trackName: "mic" }] });
+    if (url.endsWith("/tracks/new")) return NativeResponse.json({ requiresImmediateRenegotiation: true, sessionDescription: { type: "offer", sdp: "OFFER" }, tracks: body.tracks.map((tr, i) => ({ mid: String(i + 1), sessionId: tr.sessionId, trackName: tr.trackName })) });
+    return NativeResponse.json({});
+  };
+  try {
+    const env = { REALTIME_SFU_APP_ID: "APP", REALTIME_SFU_BEARER_TOKEN: "SECRET" };
+    const { room, ws, sent } = await openRoom(3, 1, env, false);
+    const say = (w, m) => room.webSocketMessage(w, JSON.stringify({ type: "voice", ...m }));
+    assert.equal(last(ws[0], "lobby").voiceOk, true);
+    assert.equal(room.room.settings.voice, "ptt", "push to talk unless the host says otherwise");
+    await say(ws[0], { op: "session", id: 1 });
+    await say(ws[0], { op: "publish", id: 2, sdp: "OFFER0", mid: "0" });
+    assert.deepEqual(last(ws[0], "voice"), { type: "voice", id: 2, ok: true, sdp: "ANSWER" });
+    await say(ws[1], { op: "session", id: 1 });
+    // seat 2 never joined and seat 3 is a bot: only seat 0 comes back
+    await say(ws[1], { op: "pull", id: 2, seats: [0, 2, 3, 1] });
+    const pull = last(ws[1], "voice");
+    assert.equal(pull.ok, true);
+    assert.equal(pull.tracks.length, 1);
+    assert.equal(pull.tracks[0].key, room.room.seats[0].voice.key);
+    assert.equal(pull.renegotiate, true);
+    const pullCall = calls.find((c) => c.url.includes("/sess2/tracks/new"));
+    assert.deepEqual(pullCall.body.tracks, [{ location: "remote", sessionId: "sess1", trackName: "mic" }]);
+    for (const c of calls) { assert.equal(c.auth, "Bearer SECRET"); assert.ok(c.url.startsWith("https://rtc.live.cloudflare.com/v1/apps/APP/")); }
+    // nothing the pages are sent carries a session id or the secret
+    for (const { m } of sent) { const j = JSON.stringify(m); assert.ok(!j.includes("sess1") && !j.includes("sess2") && !j.includes("SECRET"), j); }
+    const seats = last(ws[2], "lobby").seats;
+    assert.deepEqual(seats[0].voice, { state: "live", on: room.room.seats[0].voice.key });
+    assert.deepEqual(seats[1].voice, { state: "listen", on: null });
+    assert.equal(seats[2].voice, null);
+    // a seat not in voice cannot renegotiate, and a closed socket leaves voice
+    await say(ws[2], { op: "answer", id: 3, sdp: "x" });
+    assert.equal(last(ws[2], "voice").ok, false);
+    await room.webSocketClose(ws[0]);
+    assert.equal(room.room.seats[0].voice, null);
+    // the host turns voice off: everyone is out, and calls are refused
+    await room.webSocketMessage(ws[0], JSON.stringify({ type: "settings", voice: "off" }));
+    assert.equal(room.room.seats[1].voice, null);
+    await say(ws[1], { op: "session", id: 9 });
+    assert.deepEqual(last(ws[1], "voice"), { type: "voice", id: 9, ok: false, reason: "off" });
+  } finally { globalThis.fetch = realFetch; }
+});
+
+test("room: without the SFU secrets there is no voice to offer", async () => {
+  const { room, ws } = await openRoom(2, 0, {}, false);
+  assert.equal(last(ws[0], "lobby").voiceOk, false);
+  await room.webSocketMessage(ws[0], JSON.stringify({ type: "voice", op: "session", id: 1 }));
+  assert.deepEqual(last(ws[0], "voice"), { type: "voice", id: 1, ok: false, reason: "off" });
 });

@@ -30,6 +30,12 @@ const GRACE_MS = 15_000;     // a disconnected human's decisions go to the bot a
 const IDLE_MS = 30 * 60_000; // a room nobody is connected to is deleted after this
 const MIN_SEATS = E.MIN_PLAYERS, MAX_SEATS = E.MAX_PLAYERS;
 const LOG_KEEP = 120, CHAT_MAX = 200;
+// Voice goes through Cloudflare's Realtime SFU: each passenger sends one stream
+// up and pulls the others down. The app secret stays here; the browser only ever
+// talks to the SFU through this room, which checks the seat before each call.
+const SFU = "https://rtc.live.cloudflare.com/v1/apps/";
+const VOICE_MODES = ["off", "ptt", "open"];
+const VOICE_STATES = ["live", "muted", "listen", "away"];
 
 const clean = (s) => String(s ?? "").replace(/[^\p{L}\p{N} _.\-]/gu, "").trim().slice(0, 16);
 const newToken = () => crypto.randomUUID().replace(/-/g, "");
@@ -80,7 +86,10 @@ export class Room {
     const r = this.room;
     return {
       type: "lobby", code: r.code, phase: r.phase, settings: r.settings,
-      seats: r.seats.map((s) => ({ idx: s.idx, name: s.name, face: s.face, ready: s.ready, connected: s.ai || this.connected(s), ai: s.ai })),
+      seats: r.seats.map((s) => ({ idx: s.idx, name: s.name, face: s.face, ready: s.ready, connected: s.ai || this.connected(s), ai: s.ai,
+        // who is in voice and how; `on` names their stream and changes with it, so the others pull it again
+        voice: s.voice ? { state: s.voice.state, on: s.voice.track ? s.voice.key : null } : null })),
+      voiceOk: this.sfuOk(),
     };
   }
   pushLobby() { this.broadcast(this.lobbyMsg()); }
@@ -151,7 +160,7 @@ export class Room {
     if (!room) {
       if (!create) return reject("noRoom");
       this.room = {
-        code, phase: "lobby", seats: [], settings: { level: "normal", smuggling: false, dlc: false, events: false, fullExport: false, lang },
+        code, phase: "lobby", seats: [], settings: { level: "normal", smuggling: false, dlc: false, events: false, fullExport: false, voice: "ptt", lang },
         state: null, rngState: E.randomSeed(), gen: 0, deadline: 0, stepKey: "",
         log: [], alarmAt: 0, idle: false, lastActive: Date.now(),
       };
@@ -227,6 +236,10 @@ export class Room {
         if (typeof m.dlc === "boolean") room.settings.dlc = m.dlc;
         if (typeof m.events === "boolean") room.settings.events = m.events;
         if (typeof m.fullExport === "boolean") room.settings.fullExport = m.fullExport;
+        if (VOICE_MODES.includes(m.voice)) {
+          room.settings.voice = m.voice;
+          if (m.voice === "off") for (const s of room.seats) s.voice = null;
+        }
         this.pushLobby(); break;
       case "addBot":
         if (!isHost || room.phase !== "lobby" || room.seats.length >= MAX_SEATS) return;
@@ -259,6 +272,8 @@ export class Room {
         this.send(ws, { type: "export", ok: true, seed: room.seed, options: room.options, actions: room.actions, items: room.state.items });
         break;
       }
+      case "voice":
+        await this.voiceOp(ws, seat, m); break;
       case "chat": {
         if (!seat) return;
         const text = String(m.text ?? "").replace(/\s+/g, " ").trim().slice(0, CHAT_MAX);
@@ -305,6 +320,7 @@ export class Room {
     const others = this.sockets().filter((s) => s !== ws);
     if (seat && !others.some((s) => s.deserializeAttachment()?.token === seat.token)) {
       seat.lastSeen = Date.now();
+      seat.voice = null; // a page that is gone is not listening; it joins voice again when it comes back
       this.pushLobby(); // shows the seat as away
       if (room.phase === "game") await this.afterChange();
     }
@@ -312,6 +328,86 @@ export class Room {
     await this.save();
   }
   async webSocketError(ws) { await this.webSocketClose(ws); }
+
+  // ---------- voice ----------
+  // Every call is { type: "voice", op, id, ... } and gets one reply with the same id.
+  // The room knows each seat's SFU session; the browser never sees one, and can
+  // only pull the streams of seats in this room.
+  sfuOk() { return !!(this.env && this.env.REALTIME_SFU_APP_ID && this.env.REALTIME_SFU_BEARER_TOKEN); }
+  async sfu(method, path, body) {
+    const res = await fetch(SFU + this.env.REALTIME_SFU_APP_ID + path, {
+      method, headers: { Authorization: "Bearer " + this.env.REALTIME_SFU_BEARER_TOKEN, "Content-Type": "application/json" },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    const out = await res.json().catch(() => ({}));
+    if (!res.ok || out.errorCode) throw new Error(out.errorDescription || out.errorCode || "sfu " + res.status);
+    return out;
+  }
+  async voiceOp(ws, seat, m) {
+    const r = this.room;
+    const reply = (body) => this.send(ws, { type: "voice", id: m.id, ...body });
+    if (!seat || seat.ai || r.settings.voice === "off" || !this.sfuOk()) return reply({ ok: false, reason: "off" });
+    const v = seat.voice;
+    if (m.op !== "session" && m.op !== "leave" && !v) return reply({ ok: false, reason: "noSession" });
+    const sdp = typeof m.sdp === "string" ? m.sdp.slice(0, 64_000) : "";
+    try {
+      switch (m.op) {
+        case "session": {
+          const res = await this.sfu("POST", "/sessions/new");
+          seat.voice = { session: res.sessionId, track: null, key: newToken().slice(0, 10), state: "listen" };
+          this.pushLobby();
+          return reply({ ok: true });
+        }
+        case "publish": {
+          const mid = String(m.mid ?? "");
+          const res = await this.sfu("POST", `/sessions/${v.session}/tracks/new`, {
+            sessionDescription: { type: "offer", sdp }, tracks: [{ location: "local", mid, trackName: "mic" }],
+          });
+          const tr = (res.tracks || [])[0];
+          if (tr && tr.error) throw new Error(tr.error.errorDescription || "publish");
+          v.track = "mic";
+          v.state = m.muted ? "muted" : "live";
+          this.pushLobby();
+          return reply({ ok: true, sdp: res.sessionDescription.sdp });
+        }
+        case "pull": {
+          const want = (Array.isArray(m.seats) ? m.seats : []).map((i) => r.seats[i | 0])
+            .filter((o) => o && o !== seat && o.voice && o.voice.track);
+          if (!want.length) return reply({ ok: true, tracks: [] });
+          const res = await this.sfu("POST", `/sessions/${v.session}/tracks/new`, {
+            tracks: want.map((o) => ({ location: "remote", sessionId: o.voice.session, trackName: o.voice.track })),
+          });
+          const tracks = (res.tracks || []).map((tr) => {
+            const o = want.find((w) => w.voice.session === tr.sessionId);
+            return { key: o ? o.voice.key : null, mid: tr.mid, error: tr.error ? true : undefined };
+          });
+          return reply({ ok: true, tracks, sdp: res.sessionDescription ? res.sessionDescription.sdp : null, renegotiate: !!res.requiresImmediateRenegotiation });
+        }
+        case "answer":
+          await this.sfu("PUT", `/sessions/${v.session}/renegotiate`, { sessionDescription: { type: "answer", sdp } });
+          return reply({ ok: true });
+        case "close": {
+          const mids = (Array.isArray(m.mids) ? m.mids : []).map(String);
+          const res = await this.sfu("PUT", `/sessions/${v.session}/tracks/close`, {
+            tracks: mids.map((mid) => ({ mid })), sessionDescription: { type: "offer", sdp }, force: false,
+          });
+          return reply({ ok: true, sdp: res.sessionDescription ? res.sessionDescription.sdp : null });
+        }
+        case "state":
+          if (!VOICE_STATES.includes(m.state)) return reply({ ok: false });
+          v.state = m.state === "listen" || v.track ? m.state : "listen";
+          this.pushLobby();
+          return reply({ ok: true });
+        case "leave":
+          seat.voice = null;
+          this.pushLobby();
+          return reply({ ok: true });
+      }
+      return reply({ ok: false, reason: "op" });
+    } catch (err) {
+      return reply({ ok: false, reason: "sfu", message: String(err.message || err).slice(0, 200) });
+    }
+  }
 
   // ---------- game flow ----------
   async startGame() {
