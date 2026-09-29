@@ -132,6 +132,10 @@ export default {
     volume: "Volume", muteFor: "Mute for me", muteForHint: "Only changes what you hear; they are not told.", botLine: "Bots talk in text as before, bubbles and all.", notHeard: "You are not in voice, so you cannot hear.",
   },
   report: {
+    eSub: "A mystery in one journey · can you see through them before the end?", eChallenge: "A challenge to the reader",
+    eAsk: "Every clue is on the page above. Before the last stop, say which society each passenger belongs to.", eReveal: "Reveal", eSkip: "No guessing, just the ending ›",
+    eSaw: "You saw through", eAll: "All of them. You saw it before anyone on the train.", eFooled: "{names} fooled you.", eNoGuess: "You skipped the guessing.",
+    eRight: "right", eWrong: "wrong", eNone: "no guess", eSee: "the clue",
     title: "Report", back: "Back to the platform", subtitle: "A tale in {n} chapters", hui: "Chapter {n}", toc: "Contents", sway: "The two societies",
     wonGang: "{gang} won", opened: "{name} opened their bags", soloWon: "{name} left the train alone", atStop: "stop {n}",
     youWith: "You ({name}) were of {gang}, with {others}", youAlone: "You ({name}) were of {gang}", end: "The end",

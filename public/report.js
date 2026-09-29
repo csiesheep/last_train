@@ -85,7 +85,7 @@ function chart(turns) {
     `<line x1="${x0}" y1="${mid}" x2="${W}" y2="${mid}" stroke="#2a3244"/><path d="${d}" fill="none" stroke="#c9a54f" stroke-width="2"/>` +
     `<text x="0" y="14" font-size="10" fill="#c9a54f">${esc(S.gang.timekeepers)}</text><text x="0" y="72" font-size="10" fill="#3f8a74">${esc(S.gang.sealbearers)}</text>${labels}</svg>`;
 }
-function ring(turn, caption) {
+function ring(turn, caption, colored = true) {
   const cast = data.view.cast, n = cast.length;
   const Rx = n <= 6 ? 98 : 108, Ry = n <= 6 ? 66 : 72;
   let html = `<div class="mring"><div class="tbl"></div><div class="mid">${esc(lang === "en" ? t("report.atStop", { n: turn.stop }) : "第" + zhNum(turn.stop) + "站末")}</div>`;
@@ -94,13 +94,13 @@ function ring(turn, caption) {
     const pos = (c.seat - me + n) % n;
     const ang = Math.PI / 2 + (2 * Math.PI * pos) / n;
     const x = 130 + Rx * Math.cos(ang), y = 95 + Ry * Math.sin(ang);
-    const col = c.gang === "timekeepers" ? "#c9a54f" : "#3f8a74";
+    const col = !colored ? "#4a5468" : c.gang === "timekeepers" ? "#c9a54f" : "#3f8a74";
     const face = c.face ? `<img class="f" src="art/face_${esc(c.face)}.jpg" alt="" style="border-color:${col}">` : `<span class="f" style="border-color:${col}">${esc([...c.names[L()]][0] || "?")}</span>`;
     html += `<div class="m${turn.hot.includes(c.seat) ? " hot" : ""}" style="left:${x.toFixed(0)}px;top:${y.toFixed(0)}px">${face}<span>${esc(c.names[L()])}</span></div>`;
     void k;
   });
   html += "</div>";
-  const legend = `<span class="figcap"><span class="gw">●</span> ${esc(S.gang.timekeepers)}　<span class="gs">●</span> ${esc(S.gang.sealbearers)}　<span style="color:var(--rust)">◎</span> ${esc(t("report.legendHot"))}</span>`;
+  const legend = `<span class="figcap">${colored ? `<span class="gw">●</span> ${esc(S.gang.timekeepers)}　<span class="gs">●</span> ${esc(S.gang.sealbearers)}　` : ""}<span style="color:var(--rust)">◎</span> ${esc(t("report.legendHot"))}</span>`;
   return `<div class="fig">${html}${legend}${caption ? `<span class="figcap">${esc(caption)}</span>` : ""}</div>`;
 }
 function resultLine(v) {
@@ -118,19 +118,88 @@ function youLine(v) {
   return others.length ? t("report.youWith", { name: c.names[L()], others: others.join(lang === "en" ? ", " : "、"), gang: g }) : t("report.youAlone", { name: c.names[L()], gang: g });
 }
 const heading = (h) => esc(h).split(lang === "en" ? /\s*;\s*/ : /　+/).join(lang === "en" ? ";<br>" : "<br>");
+function chapterHTML(c, i, last, colored) {
+  const turn = data.view.turns[i];
+  const items = (c.items || []).filter((k) => S.items[k]).slice(0, 2);
+  return `<section class="ch" id="stop-${i + 1}"><div class="hui">${esc(t("report.hui", { n: num(i + 1) }))}</div><h2>${heading(c.heading)}</h2>` +
+    c.paragraphs.map((p) => `<p>${esc(p)}</p>`).join("") +
+    (turn && (turn.hot.length || last) ? ring(turn, c.caption, colored) : "") +
+    (items.length ? `<div class="items">${items.map((k) => `<div class="item"><img src="art/item_${esc(k)}.jpg" alt=""><div><b>${esc(S.items[k])}</b><span class="hint">${esc((S.itemText && S.itemText[k]) || "")}</span></div></div>`).join("")}</div>` : "") +
+    `</section>`;
+}
+const footerHTML = () =>
+  `<div class="foot2"><div class="grid2"><button type="button" class="btn" id="fCopy">${icon("link")}${esc(t("report.copy"))}</button><button type="button" class="btn" id="fShare">${icon("share")}${esc(t("report.share"))}</button></div>` +
+  `<div class="grid2"><button type="button" class="btn ghost" id="fDl">${icon("dl")}${esc(t("report.download"))}</button><a class="btn p" href=".">${esc(t("report.again"))}</a></div>` +
+  `<span class="hint center">${esc(t("report.note"))}</span></div>`;
+function wireFooter(R) {
+  $("fCopy").onclick = copyLink;
+  $("fShare").onclick = async () => { if (navigator.share) { try { await navigator.share({ title: R.title, url: shareUrl() }); } catch {} } else copyLink(); };
+  $("fDl").onclick = download;
+}
+
+// ---------- style E: the challenge to the reader ----------
+// Nobody's society shows until the reader has guessed: the chapters before the
+// last draw the carriage without colours, then a card asks for a guess per
+// passenger. 揭曉 shows the score, the last chapter and, for each passenger, the
+// clue that gave them away. The guess is kept on this device.
+const ch = { guess: {}, revealed: false };
+const chKey = (k) => `lt.report.${k}.${key}`;
+function loadChallenge() {
+  try { ch.guess = JSON.parse(localStorage.getItem(chKey("guess")) || "{}"); ch.revealed = localStorage.getItem(chKey("revealed")) === "1"; } catch {}
+}
+function saveChallenge() { try { localStorage.setItem(chKey("guess"), JSON.stringify(ch.guess)); localStorage.setItem(chKey("revealed"), ch.revealed ? "1" : "0"); } catch {} }
+const ringCol = (c) => (c.gang === "timekeepers" ? "#c9a54f" : "#3f8a74");
+function renderChallenge() {
+  const R = data.report[L()], v = data.view, n = v.cast.length, last = R.chapters.length - 1;
+  document.title = `${R.title} · ${S.title || "末班夜車"}`;
+  const gangOf = (c) => (ch.revealed ? `<span class="${c.gang === "timekeepers" ? "gw" : "gs"}">${esc(S.gang[c.gang])}</span>` : `<span class="qm">?</span>`);
+  const castRow = `<div class="castrow">${v.cast.map((c) => `<div>${c.face ? `<img src="art/face_${esc(c.face)}.jpg" alt="" style="border-color:${ch.revealed ? ringCol(c) : "#4a5468"}">` : ""}<span>${esc(c.names[L()])}</span>${gangOf(c)}</div>`).join("")}</div>`;
+  let html = `<h1>${esc(R.title)}</h1><div class="subt">${esc(t("report.eSub"))}</div>${castRow}<p>${esc(R.intro)}</p>` +
+    R.chapters.slice(0, last).map((c, i) => chapterHTML(c, i, false, false)).join("");
+  if (!ch.revealed) {
+    const rows = v.cast.map((c) => {
+      const g = ch.guess[c.seat];
+      const b = (gang) => `<button type="button" class="gb${g === gang ? " on " + (gang === "timekeepers" ? "w" : "s") : ""}" data-seat="${c.seat}" data-gang="${gang}" aria-pressed="${g === gang}">${esc(S.gang[gang])}</button>`;
+      return `<div class="gr">${c.face ? `<img src="art/face_${esc(c.face)}.jpg" alt="">` : ""}<b>${esc(c.names[L()])}</b><div class="seg2">${b("timekeepers")}${b("sealbearers")}</div></div>`;
+    }).join("");
+    html += `<div class="letter" id="challenge"><h3>${esc(t("report.eChallenge"))}</h3><p class="plain">${esc(t("report.eAsk"))}</p><div class="guess">${rows}</div>` +
+      `<button type="button" class="btn p" id="eReveal">${esc(t("report.eReveal"))}</button><button type="button" class="linkish center" id="eSkip">${esc(t("report.eSkip"))}</button></div>`;
+  } else {
+    const guessed = v.cast.filter((c) => ch.guess[c.seat]);
+    const right = v.cast.filter((c) => ch.guess[c.seat] === c.gang);
+    const fooled = guessed.filter((c) => ch.guess[c.seat] !== c.gang).map((c) => c.names[L()]);
+    const line = !guessed.length ? t("report.eNoGuess") : right.length === n ? t("report.eAll") : fooled.length ? t("report.eFooled", { names: fooled.join(lang === "en" ? ", " : "、") }) : "";
+    const clues = R.clues || [];
+    const verdict = v.cast.map((c) => {
+      const cl = clues.find((x) => x.seat === c.seat);
+      const g = ch.guess[c.seat];
+      const mark = !g ? `<span class="hint">${esc(t("report.eNone"))}</span>` : g === c.gang ? `<span class="ok">${esc(t("report.eRight"))}</span>` : `<span class="no">${esc(t("report.eWrong"))}</span>`;
+      return `<div class="vd">${c.face ? `<img src="art/face_${esc(c.face)}.jpg" alt="" style="border-color:${ringCol(c)}">` : ""}<div><b>${esc(c.names[L()])}</b>　${gangOf(c)}　${mark}` +
+        (cl ? `<br><span class="small">${esc(cl.text)}</span> <a href="#stop-${cl.stop}">${esc(t("report.eSee"))} ›</a>` : "") + `</div></div>`;
+    }).join("");
+    const you = youLine(v);
+    html += `<div class="score" id="challenge">${guessed.length ? `<span class="hint">${esc(t("report.eSaw"))}</span><b>${right.length} / ${n}</b>` : ""}${line ? `<span class="small">${esc(line)}</span>` : ""}</div>` +
+      chapterHTML(R.chapters[last], last, true, true) +
+      `<div class="res">${resultLine(v)}</div>${you ? `<div class="you">${esc(you)}</div>` : ""}` +
+      `<div class="verdict">${verdict}</div>` +
+      `<div class="box"><span class="lab">${esc(t("report.sway"))}</span>${chart(v.turns)}</div>` +
+      `<p class="ending">${esc(R.ending)}</p>${R.poem ? `<div class="poem">${esc(R.poem)}</div>` : ""}`;
+  }
+  $("rpArticle").innerHTML = html + footerHTML();
+  wireFooter(R);
+  for (const b of document.querySelectorAll(".gb")) b.onclick = () => { ch.guess[+b.dataset.seat] = b.dataset.gang; saveChallenge(); renderChallenge(); };
+  const go = () => { ch.revealed = true; saveChallenge(); renderChallenge(); const el = $("challenge"); if (el) el.scrollIntoView({ block: "start" }); };
+  if ($("eReveal")) $("eReveal").onclick = go;
+  if ($("eSkip")) $("eSkip").onclick = () => { ch.guess = {}; go(); };
+  show("rpArticle");
+}
+
 function renderReport() {
   const R = data.report[L()], v = data.view;
+  if (Array.isArray(R.clues)) return renderChallenge();
   document.title = `${R.title} · ${S.title || "末班夜車"}`;
   const toc = R.chapters.map((c, i) => `<a href="#stop-${i + 1}"><span>${esc(t("report.hui", { n: num(i + 1) }))}</span><span>${esc(c.heading)}</span></a>`).join("");
-  const chapters = R.chapters.map((c, i) => {
-    const turn = v.turns[i];
-    const items = (c.items || []).filter((k) => S.items[k]).slice(0, 2);
-    return `<section class="ch" id="stop-${i + 1}"><div class="hui">${esc(t("report.hui", { n: num(i + 1) }))}</div><h2>${heading(c.heading)}</h2>` +
-      c.paragraphs.map((p) => `<p>${esc(p)}</p>`).join("") +
-      (turn && (turn.hot.length || i === R.chapters.length - 1) ? ring(turn, c.caption) : "") +
-      (items.length ? `<div class="items">${items.map((k) => `<div class="item"><img src="art/item_${esc(k)}.jpg" alt=""><div><b>${esc(S.items[k])}</b><span class="hint">${esc((S.itemText && S.itemText[k]) || "")}</span></div></div>`).join("")}</div>` : "") +
-      `</section>`;
-  }).join("");
+  const chapters = R.chapters.map((c, i) => chapterHTML(c, i, i === R.chapters.length - 1, true)).join("");
   const you = youLine(v);
   $("rpArticle").innerHTML =
     `<h1>${esc(R.title)}</h1><div class="subt">${esc(t("report.subtitle", { n: num(R.chapters.length) }))}</div>` +
@@ -138,13 +207,8 @@ function renderReport() {
     `<div class="box"><span class="lab">${esc(t("report.sway"))}</span>${chart(v.turns)}</div>` +
     `<div class="box toc"><span class="lab">${esc(t("report.toc"))}</span>${toc}</div>` +
     `<p>${esc(R.intro)}</p>${chapters}` +
-    `<p class="ending">${esc(R.ending)}</p>${R.poem ? `<div class="poem">${esc(R.poem)}</div>` : ""}` +
-    `<div class="foot2"><div class="grid2"><button type="button" class="btn" id="fCopy">${icon("link")}${esc(t("report.copy"))}</button><button type="button" class="btn" id="fShare">${icon("share")}${esc(t("report.share"))}</button></div>` +
-    `<div class="grid2"><button type="button" class="btn ghost" id="fDl">${icon("dl")}${esc(t("report.download"))}</button><a class="btn p" href=".">${esc(t("report.again"))}</a></div>` +
-    `<span class="hint center">${esc(t("report.note"))}</span></div>`;
-  $("fCopy").onclick = copyLink;
-  $("fShare").onclick = async () => { if (navigator.share) { try { await navigator.share({ title: R.title, url: shareUrl() }); } catch {} } else copyLink(); };
-  $("fDl").onclick = download;
+    `<p class="ending">${esc(R.ending)}</p>${R.poem ? `<div class="poem">${esc(R.poem)}</div>` : ""}` + footerHTML();
+  wireFooter(R);
   show("rpArticle");
 }
 
@@ -198,4 +262,5 @@ $("langBtn").onclick = () => {
   redraw();
 };
 redraw();
+loadChallenge();
 if (!/^[0-9a-f]{64}$/.test(key)) renderError("missing"); else { renderWait(); tick(); }

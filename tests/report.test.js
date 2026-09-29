@@ -41,6 +41,7 @@ function goodSide(d, lang) {
       items: t.items.slice(0, 1), caption: zh ? "車廂裡暗潮洶湧。" : "The carriage held its breath.", paragraphs: [zh ? "車過一站，無人說話。" : "Nobody spoke."] })),
     ending: zh ? "終點到了。" : "The end of the line.",
     poem: zh ? "夜車不問來時路\n箱底各藏玉與錶\n燈滅燈明人相認\n一聲汽笛見分曉" : "One\nTwo\nThree\nFour",
+    clues: d.cast.map((c) => ({ seat: c.seat, stop: 1, text: zh ? "第一站就露了底。" : "The first stop gave them away." })),
   };
 }
 
@@ -78,6 +79,8 @@ test("report: a passenger under their face's own name is called by it in each la
   assert.deepEqual(d.cast[0].names, { zh: "林小姐", en: "Miss Lin" });
   assert.equal(d.cast[5].names.en, "bEvilb");
   assert.ok(digestText(d, "en").includes("Miss Lin"));
+  // the moments shown while waiting say who saw through whom, never what they saw
+  for (const lang of ["zh", "en"]) for (const m of moments(d, lang)) assert.ok(!/鐘樓會|印信社|Clocktower|Seal Society/.test(m.text), m.text);
 });
 
 test("report: the check refuses game words, a wrong number of chapters, a bad couplet and items from another stop", () => {
@@ -94,6 +97,20 @@ test("report: the check refuses game words, a wrong number of chapters, a bad co
   assert.ok(p.some((x) => x.includes("牌")));
   assert.ok(p.some((x) => x.includes("chapter 2") && x.includes("heading")));
   assert.ok(p.some((x) => x.includes("at most 2")));
+  // style E: nobody's society before the last chapter, and one clue per passenger
+  const leak = goodSide(d, "zh");
+  leak.chapters[0].paragraphs = ["巴克原來是印信社的人。"];
+  leak.chapters[d.stops - 1].paragraphs = ["林小姐是鐘樓會的人。"];
+  const lp = validateLanguage(leak, d, "zh");
+  assert.ok(lp.some((x) => x.includes("chapter 1") && x.includes("society")));
+  assert.ok(!lp.some((x) => x.includes(`chapter ${d.stops} paragraph`)), "the last chapter reveals");
+  const noClue = goodSide(d, "en");
+  noClue.clues = noClue.clues.slice(1);
+  noClue.clues.push({ seat: 1, stop: 99, text: "x" });
+  const cp = validateLanguage(noClue, d, "en");
+  assert.ok(cp.some((x) => x.includes("no clue for seat 0")));
+  assert.ok(cp.some((x) => x.includes("two clues")));
+  assert.ok(cp.some((x) => x.includes('"stop" must be')));
   const short = goodSide(d, "en");
   short.chapters.pop();
   assert.ok(validateLanguage(short, d, "en").some((x) => x.includes("one chapter per stop")));
@@ -190,4 +207,17 @@ test("report: a model that keeps failing fails the story, and three tries are th
       if (i < 2) assert.equal(r.state, "pending"); else assert.deepEqual(r, { key, state: "failed", final: true });
     }
   } finally { globalThis.fetch = realFetch; }
+});
+
+test("report: a clue may not put a passenger in the wrong society or give them a trade nobody had", () => {
+  const { rec } = play(20260972, 6, { events: true });
+  const d = buildDigest(rec);
+  const side = goodSide(d, "en");
+  const other = d.cast[0].gang === "timekeepers" ? "the Seal Society" : "the Clocktower Society";
+  const nobody = Object.keys(E.TRADE_BY_ID).find((tr) => !d.cast.some((c) => c.trade === tr));
+  side.clues[0].text = `At the first stop she showed she was of ${other}.`;
+  side.clues[1].text = `At the first stop he was plainly a ${({ doctor: "Doctor", priest: "Priest", gunman: "Gunman", master: "Master", bodyguard: "Bodyguard", diplomat: "Diplomat", fortune_teller: "Fortune Teller", hypnotist: "Hypnotist", thug: "Thug", pharmacist: "Pharmacist" })[nobody] || nobody}.`;
+  const p = validateLanguage(side, d, "en");
+  assert.ok(p.some((x) => x.includes("clue 1") && x.includes("other society")), p.join("\n"));
+  assert.ok(p.some((x) => x.includes("clue 2") && x.includes("nobody at the table")), p.join("\n"));
 });

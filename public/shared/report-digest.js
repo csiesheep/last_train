@@ -207,8 +207,9 @@ const W = {
   zh: {
     S: zhS, sep: "、", sp: "", q: (x) => `「${x}」`,
     stop: (s) => `第${zhNum(s)}站`,
-    cast: "車上的乘客（結局時才揭曉的身分）：",
-    castLine: (c, gang, trade) => `${c.name}：${gang}的人，行當是${trade}`,
+    cast: "車上的乘客（方括號裡是座位號；身分是結局時才揭曉的）：",
+    castLine: (c, gang, trade) => `[${c.seat}] ${c.name}：${gang}的人，行當是${trade}`,
+    sawWho: (a, b) => `${a}看穿了${b}的來歷。`,
     keyHead: "本站要事（依輕重）：", allHead: "詳細經過：", endHead: "這一站結束時：",
     none: "這一站沒有什麼大事。",
     event: { dining: (k) => `車到餐車站：大家瞥見行李車最上層是${k}。`, speaker: (w, s) => `車廂廣播：行李車裡還剩 ${w} 只懷錶、${s} 枚玉印。`, boiler: () => "鍋爐加壓，車身抖得厲害：這一站每個人能帶的行李少了。", lights: () => "車廂熄燈：黑暗裡動手的人不必亮出自己。", customs: () => "海關驗關：每個人都得打開一件行李給大家看。", password: () => "對暗號：大家要指認一個可疑的人。", quiet: () => "這一站平靜無事。" },
@@ -254,8 +255,9 @@ const W = {
   en: {
     S: enS, sep: ", ", q: (x) => `"${x}"`,
     stop: (s) => `Stop ${s}`,
-    cast: "The passengers (who they really were, as the end revealed):",
-    castLine: (c, gang, trade) => `${c.name}: ${gang}, by trade a ${trade}`,
+    cast: "The passengers (seat number in brackets; who they really were, as the end revealed):",
+    castLine: (c, gang, trade) => `[${c.seat}] ${c.name}: ${gang}, by trade a ${trade}`,
+    sawWho: (a, b) => `${a} saw through ${b}.`,
     keyHead: "What mattered at this stop (weightiest first):", allHead: "Everything that happened:", endHead: "When the stop was over:",
     none: "Nothing of note happened at this stop.",
     event: { dining: (k) => `At the dining car everyone glimpsed the top of the luggage van: ${k}.`, speaker: (w, s) => `The carriage speaker announced ${w} pocket watches and ${s} jade seals still in the luggage van.`, boiler: () => "The boiler ran hot and the carriage shook: everyone could carry less at this stop.", lights: () => "The lights went out: whoever struck in the dark need not show themselves.", customs: () => "Customs: everyone had to open one bag for all to see.", password: () => "The password: everyone had to point at one suspicious passenger.", quiet: () => "The stop was quiet." },
@@ -303,7 +305,7 @@ const ZH_NUM = ["零", "一", "二", "三", "四", "五", "六", "七", "八", "
 function zhNum(n) { return n <= 10 ? ZH_NUM[n] : n < 20 ? "十" + ZH_NUM[n - 10] : ZH_NUM[Math.floor(n / 10)] + "十" + (n % 10 ? ZH_NUM[n % 10] : ""); }
 
 const nameIn = (d, L) => (s) => { const c = s == null ? null : d.cast[s]; return c ? c.names[L === W.zh ? "zh" : "en"] : "?"; };
-function lineText(l, d, L) {
+function lineText(l, d, L, hide = false) {
   const nm = nameIn(d, L);
   const item = (k) => L.S.items[k] || k;
   const trade = (tr) => L.S.trades[tr] || tr;
@@ -367,7 +369,10 @@ function lineText(l, d, L) {
     else if (m.to == null) out.push(L.toVan(nm(m.from), item(m.kind)));
     else out.push(L.moved(item(m.kind), nm(m.from), nm(m.to)));
   }
+  // hide: for readers who have not guessed yet, who saw through whom, not what they saw
+  const seen = new Set();
   for (const k of l.learned || []) {
+    if (hide) { if ((k.k === "gang" || k.k === "trade") && !seen.has(k.who + "/" + k.of)) { seen.add(k.who + "/" + k.of); out.push(L.sawWho(nm(k.who), nm(k.of))); } continue; }
     if (k.k === "gang") out.push(L.sawGang(nm(k.who), nm(k.of), gang(k.v)));
     if (k.k === "trade") out.push(L.sawTrade(nm(k.who), nm(k.of), trade(k.v)));
     if (k.k === "hand") out.push(L.sawHand(nm(k.who), nm(k.of), k.v.map(item).join(L.sep)));
@@ -386,7 +391,7 @@ export function digestText(d, lang) {
   const L = lang === "zh" ? W.zh : W.en;
   const nm = nameIn(d, L);
   const out = [L.cast];
-  for (const c of d.cast) out.push("- " + L.castLine({ name: nm(c.seat) }, L.S.gang[c.gang], L.S.trades[c.trade] || c.trade));
+  for (const c of d.cast) out.push("- " + L.castLine({ seat: c.seat, name: nm(c.seat) }, L.S.gang[c.gang], L.S.trades[c.trade] || c.trade));
   out.push("");
   for (const t of d.turns) {
     out.push(`## ${L.stop(t.stop)}${d.options.events ? " · " + eventText(t.event, L) : ""}`);
@@ -420,7 +425,7 @@ export function moments(d, lang, max = 3) {
     if (out.length >= max) break;
     // never the ending: that is the story's to tell
     const i = t.key.find((k) => t.lines[k].type !== "declare" && t.lines[k].type !== "solo");
-    if (i != null) out.push({ stop: t.stop, text: lineText(t.lines[i], d, L).split(lang === "zh" ? /(?<=。)/ : /(?<=\.)\s/).slice(0, 3).join(lang === "zh" ? "" : " ") });
+    if (i != null) out.push({ stop: t.stop, text: lineText(t.lines[i], d, L, true).split(lang === "zh" ? /(?<=。)/ : /(?<=\.)\s/).slice(0, 3).join(lang === "zh" ? "" : " ") });
   }
   return out;
 }

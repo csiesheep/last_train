@@ -50,3 +50,30 @@ html[lang=en] .rp .poem { letter-spacing: 0; font-style: italic; font-family: Ge
 .rp .mo { display: flex; gap: 10px; align-items: flex-start; text-align: left; }
 .rp .mo .n { color: var(--brass-hi); font-family: var(--lat); font-size: 18px; width: 22px; flex: 0 0 auto; line-height: 1.3; }
 .rp .quill { color: var(--brass-hi); }
+
+/* style E: the challenge to the reader */
+.rp .castrow { display: grid; grid-template-columns: repeat(auto-fit, minmax(46px, 1fr)); gap: 6px; margin-top: 14px; font-family: var(--body); }
+.rp .castrow div { display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 11px; text-align: center; }
+.rp .castrow img { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid; }
+.rp .qm { color: var(--grey); font-family: var(--lat); font-size: 15px; line-height: 1; }
+.rp .letter { border: 1px solid var(--brass-hi); background: #12151c; padding: 18px 14px; display: flex; flex-direction: column; gap: 12px; position: relative; margin-top: 30px; font-family: var(--body); scroll-margin-top: 12px; }
+.rp .letter::before { content: ""; position: absolute; inset: 4px; border: 1px solid rgba(201, 165, 79, 0.35); pointer-events: none; }
+.rp .letter h3 { margin: 0; text-align: center; color: var(--brass-hi); font-size: 19px; letter-spacing: 0.3em; font-family: var(--disp); }
+.rp .letter p.plain { text-indent: 0; font-size: 14px; margin: 0; font-family: var(--body); }
+.rp .guess { display: flex; flex-direction: column; gap: 8px; position: relative; }
+.rp .gr { display: flex; align-items: center; gap: 10px; }
+.rp .gr img { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 1px solid var(--line); }
+.rp .gr b { flex: 1; font-size: 14px; font-weight: 500; min-width: 0; }
+.rp .seg2 { display: flex; gap: 4px; }
+.rp .gb { min-height: 36px; font-size: 12px; padding: 0 9px; border: 1px solid var(--line); border-radius: 2px; background: var(--card); color: var(--grey); cursor: pointer; }
+.rp .gb.on.w { border-color: var(--brass-hi); background: var(--brass-hi); color: var(--deep); font-weight: 700; }
+.rp .gb.on.s { border-color: var(--jade); background: var(--jade); color: var(--deep); font-weight: 700; }
+.rp .letter .linkish { align-self: center; font-size: 13px; position: relative; }
+.rp .letter .btn { position: relative; }
+.rp .score { text-align: center; display: flex; flex-direction: column; gap: 2px; margin-top: 30px; font-family: var(--body); scroll-margin-top: 12px; }
+.rp .score b { font-family: var(--lat); font-size: 46px; color: var(--brass-hi); line-height: 1.1; }
+.rp .verdict { display: flex; flex-direction: column; gap: 8px; margin-top: 18px; font-family: var(--body); }
+.rp .vd { display: flex; gap: 10px; align-items: flex-start; border-bottom: 1px dashed var(--line); padding-bottom: 8px; font-size: 13px; line-height: 1.6; }
+.rp .vd img { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 2px solid; flex: 0 0 auto; }
+.rp .vd .ok { color: var(--jade); font-weight: 700; } .rp .vd .no { color: var(--rust); font-weight: 700; }
+.rp .vd a { font-size: 12px; }

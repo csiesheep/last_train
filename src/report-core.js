@@ -36,7 +36,7 @@ export const MODEL = "deepseek-v4-pro";
 export const FALLBACK_MODEL = "deepseek-flash";
 export const CALL_MS = 200_000;       // one model call; three in a row stay under the alarm's 15 minutes
 export const STALE_MS = 20 * 60_000;  // still "pending" after this: the writing was lost
-export const REPORT_VERSION = 1;
+export const REPORT_VERSION = 2; // 2: style E, the challenge to the reader (clues per passenger)
 const KEY_RE = /^[0-9a-f]{64}$/;
 
 const json = (body, status = 200) =>

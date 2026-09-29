@@ -25,6 +25,8 @@ createServer((req, res) => {
       ending: zh ? "終點到了，汽笛一聲，各人提著行李下車。" : "The end of the line: a whistle, and everyone stepped down with their bags.",
       poem: zh ? "夜車不問來時路\n箱底各藏玉與錶\n燈滅燈明人相認\n一聲汽笛見分曉" : "The night train asks not whence you came\nEach case hides jade or ticking gold\nThe lamps go dark, the lamps return\nOne whistle, and the tale is told",
     };
+    const seats = (user.match(/^- \[(\d+)\]/gm) || []).length;
+    story.clues = Array.from({ length: seats }, (_, seat) => ({ seat, stop: 1, text: zh ? "第一站就露了底。" : "The first stop gave them away." }));
     setTimeout(() => {
       res.writeHead(200, { "content-type": "application/json" });
       res.end(JSON.stringify({ choices: [{ message: { content: JSON.stringify(story) }, finish_reason: "stop" }], usage: {} }));

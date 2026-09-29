@@ -132,6 +132,10 @@ export default {
     volume: "音量", muteFor: "只對你靜音", muteForHint: "只影響你聽到的，對方不會知道。", botLine: "機器人照舊用文字閒話，氣泡照舊冒在頭像上。", notHeard: "你不在語音裡，聽不到。",
   },
   report: {
+    eSub: "一局推理 · 你能在終點前看穿他們嗎", eChallenge: "給讀者的挑戰",
+    eAsk: "到這裡，所有線索都已經寫在上面了。翻到終點之前，說出每個人屬於哪一邊。", eReveal: "揭曉", eSkip: "不猜，直接看結局 ›",
+    eSaw: "你看穿了", eAll: "全對。你比車上每個人都早看穿。", eFooled: "{names}騙過了你。", eNoGuess: "你沒有猜，直接看了結局。",
+    eRight: "猜對", eWrong: "猜錯", eNone: "沒猜", eSee: "看線索",
     title: "戰報", back: "回到月台", subtitle: "章回說書 · 共{n}回", hui: "第{n}回", toc: "目錄", sway: "兩會聲勢",
     wonGang: "{gang}勝", opened: "{name}開箱", soloWon: "{name}獨自下車", atStop: "第{n}站",
     youWith: "你（{name}）與 {others} 同屬{gang}", youAlone: "你（{name}）是{gang}的人", end: "結局",
