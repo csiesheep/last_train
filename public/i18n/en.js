@@ -153,6 +153,12 @@ export default {
     cardLocked: "A report tells what everyone did at every step, so in a compartment the conductor has to tick “Share the full record after the game” before departure.",
     cardMissing: "This game began before the server kept every move; it cannot be told.",
   },
+  devlog: {
+    title: "Dev log", sub: "車務日誌 · the carriage, refitted", intro: "Every refit of this train, newest first.", all: "All",
+    tags: { new: "New", rule: "Rules", look: "Look", dlc: "Expansion", fix: "Fix", launch: "Departure" },
+    latest: "Latest", also: "See also", board: "Board", link: "Dev log", newTag: "New",
+    week: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
+  },
   stale: { title: "The train has been refitted", body: "The game was updated while this page was open. Reload and you will be back in your seat; the game carries on.", reload: "Reload" },
   journey: {
     turn1: "{n} turn", turns: "{n} turns", note1: "{n} note", notes: "{n} notes", noNotes: "no notes", now: "now", none: "no event",

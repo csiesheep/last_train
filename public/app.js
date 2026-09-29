@@ -14,6 +14,7 @@ import { looksFromLog, isStale } from "./shared/seen.js";
 import { VERSION } from "./shared/version.js";
 import { buildRecord, cleanAction, finalTable, resultOf } from "./shared/record.js";
 import { createVoice, canVoice, isIOS } from "./voice.js";
+import { LATEST as DEV_LATEST, isFresh, SEEN_KEY as DEV_SEEN } from "./shared/devlog.js";
 
 const LANGS = { en, "zh-Hant": zh };
 const $ = (id) => document.getElementById(id);
@@ -103,6 +104,18 @@ function setLang(l) {
   if (game.mode === "solo" && game.st) { game.names = soloNames(); rebuildLog(); render(); }
   if (game.mode === "net") { if (game.lobby) renderLobby(); if (game.view) { rebuildLog(); render(); } }
   renderVoice();
+  renderDevNotice();
+}
+// The dev log on the landing: a notice under the title while the newest entry is
+// under a week old and this device has not opened the dev log since; a dot by the
+// link at the foot until it has.
+function renderDevNotice() {
+  const unseen = store.get(DEV_SEEN, "") !== DEV_LATEST.id;
+  $("devNotice").hidden = !(unseen && isFresh(DEV_LATEST));
+  $("devNoticeTag").textContent = t("devlog.newTag");
+  $("devNoticeText").textContent = DEV_LATEST[lang === "en" ? "en" : "zh"].title;
+  $("devNoticeGo").textContent = t("devlog.link") + " ›";
+  $("devLink").classList.toggle("dotted", unseen);
 }
 $("langBtn").addEventListener("click", () => setLang(lang === "en" ? "zh-Hant" : "en"));
 const num = (n) => (S.nums && S.nums[n - 1]) || String(n);

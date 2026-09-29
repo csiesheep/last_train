@@ -154,6 +154,12 @@ export default {
     cardLocked: "戰報會寫出每個人每一步做了什麼，包廂裡要車長在開車前勾「賽後公開完整紀錄」才能寫。",
     cardMissing: "這一局開始時伺服器還沒記下每一步，寫不了戰報。",
   },
+  devlog: {
+    title: "車務日誌", sub: "Dev log · the carriage, refitted", intro: "這班車每一次整修的紀錄，新的在上面。", all: "全部",
+    tags: { new: "新功能", rule: "規則", look: "畫面", dlc: "擴充", fix: "修正", launch: "發車" },
+    latest: "最新一班", also: "也看看", board: "上車", link: "車務日誌", newTag: "新",
+    week: ["週日", "週一", "週二", "週三", "週四", "週五", "週六"],
+  },
   stale: { title: "車廂換新了", body: "你開著頁面的時候，遊戲剛更新過。重新整理後會回到你原本的座位，牌局照常進行。", reload: "重新整理" },
   journey: {
     turn1: "{n} 手", turns: "{n} 手", note1: "{n} 則筆記", notes: "{n} 則筆記", noNotes: "沒有筆記", now: "進行中", none: "無事",

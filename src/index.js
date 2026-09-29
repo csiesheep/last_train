@@ -17,7 +17,7 @@ const CANONICAL = "https://games.csiesheep.com" + PREFIX + "/";
 // carry a canonical back to it, so the page and the rules are all there is.
 // Bump LASTMOD when the page or the rules change in a way a reader would
 // notice; a sitemap date that never moves is a date crawlers stop reading.
-const LASTMOD = "2026-09-16";
+const LASTMOD = "2026-09-28";
 const SITEMAP_XML = [
   '<?xml version="1.0" encoding="UTF-8"?>',
   '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
@@ -30,6 +30,11 @@ const SITEMAP_XML = [
   "    <loc>" + CANONICAL + "rules</loc>",
   "    <lastmod>" + LASTMOD + "</lastmod>",
   "    <priority>0.8</priority>",
+  "  </url>",
+  "  <url>",
+  "    <loc>" + CANONICAL + "devlog</loc>",
+  "    <lastmod>" + LASTMOD + "</lastmod>",
+  "    <priority>0.5</priority>",
   "  </url>",
   "</urlset>",
   "",

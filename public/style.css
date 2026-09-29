@@ -487,3 +487,11 @@ body.has-ptt .scr, body.has-ptt .overlay { padding-bottom: 104px; }
 .rcard { border-color: var(--brass); }
 .quill { color: var(--brass-hi); display: inline-flex; }
 .btn.brass { border-color: var(--brass); color: var(--brass-hi); background: rgba(201, 165, 79, 0.06); }
+/* the 車務日誌: entry tags (also on the dev log page) */
+.tagp { align-self: flex-start; font-size: 11px; letter-spacing: 0.08em; padding: 1px 8px; border-radius: 10px; border: 1px solid currentColor; white-space: nowrap; line-height: 1.6; }
+.t-new, .t-launch { color: var(--brass-hi); } .t-rule { color: var(--jade); } .t-look { color: var(--steel); } .t-fix { color: var(--grey); } .t-dlc { color: #c47a5a; }
+/* on the landing: the notice under the title, and the dot by the foot link */
+.devnotice { display: inline-flex; align-items: center; gap: 8px; align-self: flex-start; margin-top: 14px; border: 1px solid var(--brass); background: rgba(9, 12, 19, 0.8); padding: 5px 10px 5px 6px; border-radius: 2px; color: var(--bone); font-size: 14px; }
+.devnotice .go { color: var(--brass-hi); font-size: 12px; }
+.devdot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--brass-hi); vertical-align: 2px; margin-left: 4px; }
+#devLink.dotted::after { content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--brass-hi); vertical-align: 2px; margin-left: 5px; }
