@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#0e121b">
+<title>末班夜車 · 戰報</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@700;900&family=Noto+Sans+TC:wght@400;500;700&family=LXGW+WenKai+TC:wght@400;700&family=Cormorant+Garamond:ital,wght@0,500;0,700;1,500&display=swap">
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="report.css">
+</head>
+<body>
+<!-- A finished game told as a tale in chapters (the 戰報). The story itself is
+     written by a model on the server; this page waits for it and draws it. -->
+<header class="top">
+  <a href="." class="brand disp" id="rpBrand">末班夜車 · 戰報</a>
+  <nav><button type="button" id="langBtn" class="linkish">EN</button></nav>
+</header>
+<main class="scr rp" id="rp">
+  <section id="rpWait" class="stack" hidden></section>
+  <section id="rpError" class="stack" hidden></section>
+  <article id="rpArticle" hidden></article>
+</main>
+<script type="module" src="report.js"></script>
+</body>
+</html>

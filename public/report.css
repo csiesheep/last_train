@@ -1,0 +1,52 @@
+/* The 戰報 page (report.html): the game's own tokens and buttons from
+   style.css, and here only the tale's own look: 霞鶩文楷 for the telling, brass
+   for the chapter marks, the carriage drawn at the end of every stop. */
+.top { max-width: 600px; }
+.scr.rp { max-width: 600px; gap: 16px; min-height: 0; }
+.rp .kai, .rp article { font-family: "LXGW WenKai TC", "Noto Serif TC", serif; }
+.rp h1 { margin: 6px 0 0; font-size: 30px; letter-spacing: 0.24em; color: var(--brass-hi); text-align: center; font-weight: 700; }
+.rp .subt { text-align: center; font-size: 13px; color: var(--grey); letter-spacing: 0.2em; margin-top: 4px; }
+.rp .res { text-align: center; font-size: 15px; margin-top: 10px; }
+.rp .you { text-align: center; font-size: 14px; color: var(--grey); margin-top: 2px; }
+.rp .gw, .rp .watch { color: var(--brass-hi); } .rp .gs, .rp .seal { color: var(--jade); }
+.rp .box { border: 1px solid var(--brass); border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; margin-top: 16px; }
+.rp .box .lab { font-family: var(--body); }
+.rp .toc a { display: flex; gap: 10px; font-size: 14px; color: var(--bone); line-height: 1.9; }
+.rp .toc a span:first-child { color: var(--brass-hi); flex: 0 0 auto; min-width: 44px; }
+.rp .toc a:hover span:last-child { color: var(--brass-hi); }
+.rp article p { font-size: 15.5px; line-height: 1.95; text-indent: 2em; color: #d8d1c0; text-align: justify; margin: 14px 0 0; }
+html[lang=en] .rp article p { text-indent: 0; text-align: left; font-family: Georgia, "Noto Serif TC", serif; font-size: 16px; line-height: 1.75; }
+.rp .ch { scroll-margin-top: 12px; }
+.rp .hui { text-align: center; color: var(--brass-hi); font-size: 12px; letter-spacing: 0.3em; margin-top: 30px; }
+.rp h2 { margin: 6px 0 0; text-align: center; font-size: 17px; line-height: 1.75; font-weight: 700; }
+.rp .fig { border: 1px solid var(--line); border-radius: 10px; background: var(--deep); padding: 12px 10px; display: flex; flex-direction: column; gap: 6px; align-items: center; margin-top: 16px; }
+.rp .figcap { font-size: 12.5px; color: var(--grey); text-align: center; font-family: var(--body); line-height: 1.6; }
+.rp .items { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
+.rp .item { display: flex; gap: 12px; align-items: center; background: rgba(201, 165, 79, 0.08); border-radius: 8px; padding: 8px; font-family: var(--body); }
+.rp .item img { width: 56px; height: 56px; object-fit: cover; border-radius: 4px; border: 1px solid var(--brass); flex: 0 0 auto; }
+.rp .item b { display: block; }
+.rp .ending { margin-top: 30px; }
+.rp .poem { text-align: center; font-size: 17px; line-height: 2.1; color: var(--brass-hi); letter-spacing: 0.12em; margin-top: 18px; white-space: pre-line; }
+html[lang=en] .rp .poem { letter-spacing: 0; font-style: italic; font-family: Georgia, serif; }
+/* the carriage at the end of a stop: faces round the table, ringed in their society's colour */
+.mring { position: relative; width: 260px; height: 190px; }
+.mring .tbl { position: absolute; left: 130px; top: 95px; width: 128px; height: 128px; margin: -64px 0 0 -64px; border-radius: 50%; border: 1px solid var(--brass); background: radial-gradient(circle at 50% 40%, #1c2333, #0b0f16); }
+.mring .m { position: absolute; width: 64px; margin-left: -32px; margin-top: -21px; display: flex; flex-direction: column; align-items: center; gap: 1px; }
+.mring .m .f { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 2px solid; box-sizing: border-box; background: var(--deep); display: flex; align-items: center; justify-content: center; font-size: 14px; }
+.mring .m.hot .f { box-shadow: 0 0 0 2px var(--deep), 0 0 0 4px var(--rust); }
+.mring .m span { font-size: 10px; line-height: 13px; background: rgba(9, 12, 19, 0.85); padding: 0 4px; border-radius: 2px; white-space: nowrap; max-width: 70px; overflow: hidden; text-overflow: ellipsis; font-family: var(--body); }
+.mring .mid { position: absolute; left: 130px; top: 95px; transform: translate(-50%, -50%); font-size: 11px; color: var(--grey); text-align: center; font-family: var(--body); max-width: 100px; }
+.rp .foot2 { display: flex; flex-direction: column; gap: 10px; margin-top: 30px; font-family: var(--body); }
+.rp .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+/* waiting */
+.rp .wait { text-align: center; align-items: center; gap: 8px; background: var(--deep); border-color: var(--brass); display: flex; flex-direction: column; }
+.rail { position: relative; height: 56px; align-self: stretch; margin: 4px 10px 0; }
+.rail .ln { position: absolute; left: 0; right: 0; top: 27px; height: 6px; border-top: 1px solid var(--brass); border-bottom: 1px solid var(--brass); background: repeating-linear-gradient(90deg, transparent 0 9px, rgba(168, 134, 58, 0.55) 9px 11px); }
+.rail .st { position: absolute; top: 22px; width: 16px; height: 16px; margin-left: -8px; border-radius: 50%; border: 2px solid var(--brass); background: var(--ground); box-sizing: border-box; }
+.rail .lb { position: absolute; top: 42px; font-size: 11px; color: var(--grey); transform: translateX(-50%); white-space: nowrap; }
+.rail .tr { position: absolute; top: 4px; transform: translateX(-50%); color: var(--bone); animation: ride 14s linear infinite; }
+@keyframes ride { from { left: 0%; } to { left: 100%; } }
+@media (prefers-reduced-motion: reduce) { .rail .tr { animation: none; left: 50%; } }
+.rp .mo { display: flex; gap: 10px; align-items: flex-start; text-align: left; }
+.rp .mo .n { color: var(--brass-hi); font-family: var(--lat); font-size: 18px; width: 22px; flex: 0 0 auto; line-height: 1.3; }
+.rp .quill { color: var(--brass-hi); }

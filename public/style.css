@@ -483,3 +483,7 @@ body.has-ptt .scr, body.has-ptt .overlay { padding-bottom: 104px; }
 .vtoast .ic { color: var(--jade); margin-top: 1px; }
 .vrange { flex: 1; accent-color: var(--brass-hi); min-width: 0; }
 .vpct { width: 40px; text-align: right; }
+/* the 戰報 card on the result page */
+.rcard { border-color: var(--brass); }
+.quill { color: var(--brass-hi); display: inline-flex; }
+.btn.brass { border-color: var(--brass); color: var(--brass-hi); background: rgba(201, 165, 79, 0.06); }

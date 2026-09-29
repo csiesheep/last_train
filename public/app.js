@@ -66,6 +66,7 @@ const PATHS = {
   sword: '<path d="M4 20l11-11"/><path d="M14 5l5 5"/><path d="M12 7l5 5"/><path d="M6 14l4 4"/>',
   shield: '<path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"/>',
   out: '<circle cx="12" cy="12" r="8"/><path d="M8 12h8"/>',
+  quill: '<path d="M20 4c-6 1-11 5-13 11l-2 5 5-2c6-2 10-7 11-13z"/><path d="M7 15l4 1"/>',
   mic: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0"/><path d="M12 17.5V21"/>',
   micoff: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0"/><path d="M12 17.5V21"/><path d="M4 4l16 16"/>',
   ear: '<path d="M7 10a5 5 0 0 1 10 0c0 3-3 4-3 7a3 3 0 0 1-5 2"/><path d="M10 10a2 2 0 0 1 4 0"/>',
@@ -257,7 +258,7 @@ function startGame() {
   game.faces = [setup.face, ...freeFaces(game.rng, [setup.face], E.shuffle).slice(0, n - 1)];
   game.names = soloNames();
   game.log = []; game.logSeen = 0; game.lastTier = "silent"; game.says = []; game.sayTip = null; game.ui = freshUi(); game.result = null; game.evCard = null; game.seenCount = null;
-  game.tut = null; game.filmOver = false; game.filmWait = null; game.hold = false; resetJourney(); exp.net = null;
+  game.tut = null; game.filmOver = false; game.filmWait = null; game.hold = false; resetJourney(); exp.net = null; rep.state = "idle"; rep.key = null;
   clearTimeout(game.botTimer);
   show("table");
   tick();
@@ -306,7 +307,7 @@ function startTutorial() {
   game.names = soloNames();
   game.log = []; game.logSeen = 0; game.lastTier = "silent"; game.says = []; game.sayTip = null; game.ui = freshUi(); game.result = null; game.evCard = null; game.seenCount = null;
   game.tut = { seen: {}, pending: null }; game.filmOver = false; game.filmWait = null; game.hold = false; resetJourney();
-  game.seed = null; game.actions = null; exp.net = null;
+  game.seed = null; game.actions = null; exp.net = null; rep.state = "idle"; rep.key = null;
   show("table");
   tick();
 }
@@ -603,7 +604,7 @@ function onMsg(m) {
       renderLog(); renderLobbyLog(); break;
     case "view": {
       if (!m.view) { game.view = null; game.legal = []; if (game.lobby) { show("lobby"); renderLobby(); } break; }
-      if (m.gen !== game.gen) { game.gen = m.gen; game.log = game.log.filter((l) => l.room); game.logSeen = 0; game.ui = freshUi(); game.evCard = null; game.seenCount = null; game.filmOver = false; game.filmWait = null; resetJourney(); exp.net = null; }
+      if (m.gen !== game.gen) { game.gen = m.gen; game.log = game.log.filter((l) => l.room); game.logSeen = 0; game.ui = freshUi(); game.evCard = null; game.seenCount = null; game.filmOver = false; game.filmWait = null; resetJourney(); exp.net = null; rep.state = "idle"; rep.key = null; }
       const key = `${m.view.phase}/${m.view.scuffle?.step || m.view.trade?.step || ""}/${m.view.turnNo}/${(m.view.waitingOn || []).join(",")}/${m.view.log.length}`;
       if (key !== game.viewKey) { game.viewKey = key; game.ui = freshUi(); }
       game.view = m.view; game.legal = m.legal || []; game.names = m.names; game.faces = m.faces || []; game.me = m.me; game.deadline = m.deadline || 0;
@@ -621,6 +622,7 @@ function onMsg(m) {
       exp.pending = false;
       exp.net = m.ok ? m : null;
       exp.locked = !m.ok;
+      if (rep.waitNet) { rep.waitNet = false; if (m.ok) sendReport(); else { rep.state = m.reason === "locked" ? "locked" : "missing"; if (rep.win) try { rep.win.close(); } catch {} rep.win = null; render(); } }
       if (!m.ok && exp.scope === "full") exp.scope = "mine";
       if (exp.open) renderExport();
       break;
@@ -2172,8 +2174,55 @@ function overCard(v) {
   else if (game.me === 0) wrap.append(btn(t("table.again"), "p", () => send({ type: "rematch" })));
   else wrap.append(h("p", { class: "hint center" }, t("lobby.rematchWait")));
   // before the result is dismissed: in solo, "got it" goes on to the platform and the game is gone
+  wrap.append(reportCard());
   wrap.append(btn([icon("download", 16), t("export.button")], "ghost", openExport), h("p", { class: "hint center" }, t("export.sub")));
   return wrap;
+}
+
+// ---------- the 戰報 ----------
+// The storyteller writes the finished game up as a tale in chapters, on the
+// server, from the full record (report.html shows it). One per game: whoever
+// asks first starts it, and anyone asking again gets the same one. It opens in
+// a new tab, so the table and the compartment stay where they are.
+const rep = { state: "idle", key: null, win: null }; // idle | busy | open | locked | missing | cap | err
+const reportUrl = (k) => location.pathname.replace(/[^/]*$/, "") + "report?report=" + k + "&lang=" + lang;
+function reportCard() {
+  if (game.mode === "net" && !(game.lobby && game.lobby.settings && game.lobby.settings.fullExport)) rep.state = rep.state === "idle" ? "locked" : rep.state;
+  const card = h("div", { class: "card stack rcard" });
+  card.append(h("div", { class: "row", style: "gap:10px;align-items:flex-start" }, h("span", { class: "quill" }, icon("quill", 22)),
+    h("div", { class: "grow" }, h("b", { class: "disp", style: "font-size:16px" }, t("report.cardTitle")), h("span", { class: "hint block" }, t("report.cardNote")))));
+  if (rep.state === "locked") card.append(h("span", { class: "hint" }, t("report.cardLocked")));
+  else if (rep.state === "missing") card.append(h("span", { class: "hint" }, t("report.cardMissing")));
+  else if (rep.state === "cap") card.append(h("span", { class: "hint" }, t("report.capNote")));
+  else if (rep.state === "open") card.append(h("a", { class: "btn brass", href: reportUrl(rep.key), target: "_blank", rel: "noopener" }, icon("quill", 16), t("report.cardOpen")));
+  else card.append(btn([icon("quill", 16), rep.state === "busy" ? t("report.cardBusy") : t("report.cardGo")], "brass", askReport, rep.state === "busy"));
+  if (rep.state === "err") card.append(h("span", { class: "hint", style: "color:var(--rust)" }, t("report.failTitle")));
+  return card;
+}
+function askReport() {
+  // the tab opens now, inside the tap, or the browser blocks it; the address follows
+  try { rep.win = window.open("", "_blank"); } catch { rep.win = null; }
+  rep.state = "busy"; render();
+  if (game.mode === "net" && !exp.net) { rep.waitNet = true; send({ type: "export" }); return; }
+  sendReport();
+}
+async function sendReport() {
+  const fail = (state) => { rep.state = state; if (rep.win) try { rep.win.close(); } catch {} rep.win = null; render(); };
+  if (game.mode === "net" && !exp.net) return fail(exp.locked ? "missing" : "err");
+  let res;
+  try {
+    const { rec } = exportRecord("full");
+    res = await fetch(location.pathname.replace(/[^/]*$/, "") + "api/report", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(rec) });
+  } catch { return fail("err"); }
+  if (res.status === 429) return fail("cap");
+  if (res.status === 400) return fail("missing");
+  if (!res.ok) return fail("err");
+  const { key } = await res.json();
+  try { sessionStorage.setItem("lt.report.mine." + key, String(game.me ?? 0)); } catch {}
+  rep.key = key; rep.state = "open";
+  if (rep.win) rep.win.location.href = reportUrl(key);
+  rep.win = null;
+  render();
 }
 
 function renderOverlay(v) {
