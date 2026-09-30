@@ -12,6 +12,7 @@ import { PASSENGERS, FACE_IDS, isFace, passengerName, freeFaces } from "./shared
 import { DWELL, moveTier } from "./shared/pace.js";
 import { looksFromLog, isStale } from "./shared/seen.js";
 import { VERSION } from "./shared/version.js";
+import { portalStart, portalResult, portalRestart, portalBeaconOnLeave } from "./portal.js"; // 遊戲路口 result reporting (a no-op without a gp_token)
 import { buildRecord, cleanAction, finalTable, resultOf } from "./shared/record.js";
 import { createVoice, canVoice, isIOS } from "./voice.js";
 import { LATEST as DEV_LATEST, isFresh, SEEN_KEY as DEV_SEEN } from "./shared/devlog.js";
@@ -258,6 +259,25 @@ function freshUi() { return { mode: null, item: null, kind: null, holders: {}, p
 // so the self-playing check mode can run it at speed.
 const WAIT = { ...DWELL };
 
+// One platform round per journey this tab takes a seat on. `key` names the
+// journey (a solo counter, or a room code plus the room's deal number), so
+// re-renders and same-page reconnects never open a second round. The guided
+// tutorial is not reported. Nothing is awaited, and without ?gp_token every
+// call is a no-op.
+const portal = { opened: false, live: false, key: null, n: 0 };
+function portalBegin(key) {
+  if (portal.key === key) return;
+  const unfinished = portal.live;
+  portal.key = key; portal.live = true;
+  if (!portal.opened) { portal.opened = true; portalStart(); }
+  else portalRestart(unfinished ? "abandon" : undefined);
+}
+function portalEnd(key, won) {
+  if (portal.key !== key || !portal.live) return;
+  portal.live = false;
+  portalResult(won ? "win" : "lose"); // your own gang decides it; no draw, and the game keeps no score
+}
+
 function startGame() {
   leaveRoom(true);
   game.mode = "solo"; game.view = null; game.legal = [];
@@ -274,6 +294,8 @@ function startGame() {
   game.tut = null; game.filmOver = false; game.filmWait = null; game.hold = false; resetJourney(); exp.net = null; rep.state = "idle"; rep.key = null;
   clearTimeout(game.botTimer);
   show("table");
+  game.pkey = "solo:" + ++portal.n;
+  portalBegin(game.pkey);
   tick();
 }
 
@@ -621,6 +643,12 @@ function onMsg(m) {
       const key = `${m.view.phase}/${m.view.scuffle?.step || m.view.trade?.step || ""}/${m.view.turnNo}/${(m.view.waitingOn || []).join(",")}/${m.view.log.length}`;
       if (key !== game.viewKey) { game.viewKey = key; game.ui = freshUi(); }
       game.view = m.view; game.legal = m.legal || []; game.names = m.names; game.faces = m.faces || []; game.me = m.me; game.deadline = m.deadline || 0;
+      // A rematch arrives as a new gen, so the key changes and the round
+      // restarts; render() reports the ending. A spectator has no seat.
+      if (m.me !== null && m.me !== undefined) {
+        game.pkey = "room:" + game.code + ":" + m.gen;
+        if (m.view.phase !== "over") portalBegin(game.pkey);
+      }
       // the engine's public log becomes lines here, in this tab's language
       for (; game.logSeen < m.view.log.length; game.logSeen++) {
         const e = m.view.log[game.logSeen];
@@ -1015,6 +1043,12 @@ function render() {
   if (!live) return;
   if (live.phase === "over") {
     game.result = null; game.evCard = null;
+    // Both solo and a compartment end here, and portalEnd only fires for the
+    // round it names, so repeated renders send nothing. The tutorial is not a
+    // real journey and is not reported.
+    if (!game.tut && game.me !== null && live.me) {
+      portalEnd(game.pkey, typeof live.winner === "number" ? live.winner === game.me : live.me.gang === live.winner);
+    }
     // how your journey ended, once
     if (!game.filmOver && game.me !== null && live.me) {
       game.filmOver = true;
@@ -2310,6 +2344,9 @@ function route() {
 }
 document.querySelectorAll("[data-link]").forEach((a) => a.addEventListener("click", (e) => { e.preventDefault(); leaveRoom(); go(""); }));
 window.addEventListener("popstate", route);
+// Leaving the page mid-journey reports the round as abandoned; a finished one
+// has already been reported and sends nothing.
+portalBeaconOnLeave(() => ({ outcome: "abandon" }));
 
 setLang(new URLSearchParams(location.search).get("lang") || store.get("lt.lang", navigator.language.startsWith("zh") ? "zh-Hant" : "en"));
 route();
